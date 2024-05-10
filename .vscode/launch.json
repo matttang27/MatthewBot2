@@ -5,13 +5,16 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "type": "node",
+            "name": "Debug Server (nodemon)",
+            "program": "${workspaceFolder}/index.js",
             "request": "launch",
-            "name": "Launch Program",
             "skipFiles": [
                 "<node_internals>/**"
-            ],
-            "program": "${workspaceFolder}\\index.js"
+            ],  
+            "type": "node",
+            "runtimeExecutable": "nodemon",
+            "console": "integratedTerminal",
+            "restart": true,
         }
     ]
 }
