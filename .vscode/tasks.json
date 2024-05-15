@@ -1,0 +1,32 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "runDevelopment",
+            "dependsOrder": "parallel",
+            "dependsOn": [
+                "start bot",
+                "start server"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "start bot",
+            "type": "shell",
+            "command": "bot/bot-env/Scripts/activate ; cd bot ; pip install -r requirements.txt ; python main.py",
+            "presentation": {
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "start server",
+            "type": "shell",
+            "command": "cd server ; npm install ; node index.js",
+            "presentation": {
+                "panel": "dedicated"
+            }
+        }
+    ]
+}

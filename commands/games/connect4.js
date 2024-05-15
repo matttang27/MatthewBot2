@@ -7,16 +7,74 @@ const {
   PermissionsBitField,
   ComponentType,
   Collection,
+  MessageType,
 } = require("discord.js");
+
+const { errorEmbed, successEmbed, returnEmotes } = require("../../functions");
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("connect4")
     .setDescription("Creates a new Connect4 game"),
+  properties: {
+    minPlayers: 2,
+    maxPlayers: 10,
+  },
+  defaultEmojis: [
+    ":blue_circle:",
+    ":red_circle:",
+    ":yellow_circle:",
+    ":purple_circle:",
+    ":green_circle:",
+    ":orange_circle:",
+  ],
+  options: [
+    {
+      name: "height",
+      label: "Height",
+      desc: "Enter the height of the board (2 to 20)",
+      type: "num",
+      value: 6,
+      filter: (m) =>
+        !isNaN(m.content) &&
+        parseInt(m.content) >= 2 &&
+        parseInt(m.content) <= 20,
+    },
+    {
+      name: "width",
+      label: "Width",
+      desc: "Enter the width of the board (2 to 20)",
+      type: "num",
+      value: 7,
+      filter: (m) =>
+        !isNaN(m.content) &&
+        parseInt(m.content) >= 2 &&
+        parseInt(m.content) <= 20,
+    },
+    {
+      name: "winLength",
+      label: "Win Length",
+      desc: "Enter the amount of pieces in a row required to win (2 to 10)",
+      type: "num",
+      value: 4,
+      filter: (m) =>
+        !isNaN(m.content) &&
+        parseInt(m.content) >= 2 &&
+        parseInt(m.content) <= 10,
+    },
+  ],
   async execute(interaction) {
+    await interaction.deferReply();
+
     players = new Collection();
 
     players.set(interaction.user.id, interaction.user);
+
+    /*
+    let p1 = await interaction.guild.members.fetch("576031405037977600");
+    let p2 = await interaction.guild.members.fetch("720352012402688000");
+    players.set("576031405037977600", p1);
+    players.set("720352012402688000", p2);*/
 
     const embed = new EmbedBuilder()
       .setColor("Green")
@@ -30,8 +88,8 @@ module.exports = {
       .setStyle(ButtonStyle.Primary);
 
     const join = new ButtonBuilder()
-      .setCustomId("join")
-      .setLabel("Join")
+      .setCustomId("joinleave")
+      .setLabel("Join / Leave")
       .setStyle(ButtonStyle.Secondary);
 
     const cancel = new ButtonBuilder()
@@ -41,7 +99,7 @@ module.exports = {
 
     const row = new ActionRowBuilder().addComponents(start, join, cancel);
 
-    const response = await interaction.reply({
+    const response = await interaction.editReply({
       embeds: [embed],
       components: [row],
     });
@@ -50,44 +108,54 @@ module.exports = {
 
     const collector = response.createMessageComponentCollector({
       componentType: ComponentType.Button,
-      time: 60_000,
+      time: 240_000,
     });
 
     collector.on("collect", async (i) => {
       if (i.customId === "start") {
         if (i.user.id == players.at(0)) {
-          i.deferUpdate();
+          await i.deferUpdate();
           collector.stop();
         } else {
-          const errorEmbed = new EmbedBuilder()
-            .setColor("Red")
-            .setDescription("You are not the owner of this lobby!");
-
-          await i.reply({ embeds: [errorEmbed], ephemeral: true });
+          await i.reply(errorEmbed("You are not the owner of this lobby!"));
         }
       } else if (i.customId === "cancel") {
         if (i.user.id == players.at(0)) {
-          const errorEmbed = new EmbedBuilder()
+          const cancelledEmbed = new EmbedBuilder()
             .setColor("Red")
-            .setDescription("Game cancelled.");
-          await response.edit({ embeds: [errorEmbed], components: [] });
+            .setTitle("Connect4 game cancelled")
+            .setDescription("Blame the leader");
+          await response.edit({ embeds: [cancelledEmbed], components: [] });
           cancelled = true;
           collector.stop();
         } else {
-          const errorEmbed = new EmbedBuilder()
-            .setColor("Red")
-            .setDescription("You are not the owner of this lobby!");
-
-          await i.reply({ embeds: [errorEmbed], ephemeral: true });
+          await i.reply(errorEmbed("You are not the owner of this lobby!"));
         }
-      } else if (i.customId === "join") {
+      } else if (i.customId === "joinleave") {
         if (players.has(i.user.id)) {
-          const errorEmbed = new EmbedBuilder()
-            .setColor("Red")
-            .setDescription("You are already in the lobby!");
+          await i.deferUpdate();
 
-          await i.reply({ embeds: [errorEmbed], ephemeral: true });
+          if (players.size == 1) {
+            const cancelledEmbed = new EmbedBuilder()
+              .setColor("Red")
+              .setTitle("Connect4 game cancelled")
+              .setDescription("Everyone left? Y'all scared?");
+            await response.edit({ embeds: [cancelledEmbed], components: [] });
+            cancelled = true;
+            collector.stop();
+          } else {
+            players.delete(i.user.id);
+
+            this.updateLobby(players, embed);
+
+            await response.edit({
+              embeds: [embed],
+              components: [row],
+            });
+          }
         } else {
+          await i.deferUpdate();
+
           players.set(i.user.id, i.user);
 
           this.updateLobby(players, embed);
@@ -96,8 +164,6 @@ module.exports = {
             embeds: [embed],
             components: [row],
           });
-
-          i.deferUpdate();
         }
       }
     });
@@ -106,7 +172,8 @@ module.exports = {
       if (cancelled) {
         return;
       }
-      if (players.size != 2) {
+
+      if (players.size < this.properties.minPlayers) {
         const errorEmbed = new EmbedBuilder()
           .setColor("Red")
           .setDescription("Not enough players! Game cancelled.");
@@ -118,27 +185,44 @@ module.exports = {
         return;
       }
 
-      embed.setDescription(
-        `${
-          players.size
-        } players entered the fray!\n:blue_circle: - ${players.at(
-          0
-        )}\n:red_circle: - ${players.at(1)}`
-      );
-
+      embed.setTitle("Connect4 game: setting options");
       response.edit({
         embeds: [embed],
         components: [],
       });
 
-      players.at(0).emoji = ":blue_circle:";
-      players.at(1).emoji = ":red_circle:";
+      // settings:
 
-      // Create Game
+      let channel = interaction.channel;
 
-      let channel = response.interaction.channel;
+      let game = await this.inputSettings(players, channel);
 
-      let game = this.createGame(6, 7, players);
+      if (game == "cancelled") {
+        const cancelledEmbed = new EmbedBuilder()
+          .setColor("Red")
+          .setTitle("Connect4 game cancelled")
+          .setDescription("Blame the leader");
+        await response.edit({ embeds: [cancelledEmbed], components: [] });
+        return;
+      } else if (game == "empty") {
+        const cancelledEmbed = new EmbedBuilder()
+          .setColor("Red")
+          .setTitle("Connect4 game cancelled")
+          .setDescription("Everyone left? Y'all scared?");
+        await response.edit({ embeds: [cancelledEmbed], components: [] });
+        return;
+      }
+
+      embed.setTitle("Connect4 game in-progress!");
+      response.edit({
+        embeds: [embed],
+      });
+
+      for (var i=0;i<game.players.size;i++) {
+        players.at(i).emoji = this.defaultEmojis[i];
+      }
+
+      // Start game
 
       while (true) {
         if (game.turn > game.height * game.width) {
@@ -146,14 +230,14 @@ module.exports = {
 
           const drawEmbed = new EmbedBuilder()
             .setTitle("Game ended in draw!")
-            .setFooter("everyone's a loser");
+            .setFooter({ text: "everyone's a loser" });
           channel.send({
             embeds: [drawEmbed],
           });
 
           return;
         }
-        await channel.send({ embeds: [this.printBoard(game)] });
+        await channel.send({ embeds: [this.printBoard(game)], components: [] });
 
         const filter = (m) =>
           m.author.id === game.players.at((game.turn + 1) % 2).id &&
@@ -177,10 +261,11 @@ module.exports = {
         }
 
         if (this.checkWin(game) != -1) {
-          const victoryEmbed = new EmbedBuilder().setTitle("We have a winner!")
-          .setDescription(`All hail ${this.checkWin(game)}`)
-          .setColor('Green')
-          await channel.send({embeds: [victoryEmbed]});
+          const victoryEmbed = new EmbedBuilder()
+            .setTitle("We have a winner!")
+            .setDescription(`All hail ${this.checkWin(game)}`)
+            .setColor("Green");
+          await channel.send({ embeds: [victoryEmbed] });
 
           return;
         }
@@ -201,7 +286,149 @@ module.exports = {
     embed.setDescription(playerString);
   },
 
-  emptyBoard(height,width) {
+  async inputSettings(players, channel) {
+    return new Promise(async (resolve, reject) => {
+      let options = this.options.reduce((obj, cur) => {
+        obj[cur.name] = cur.value;
+        return obj;
+      }, {});
+
+      let message = await channel.send({ content: "Loading Settings" });
+      const continueB = new ButtonBuilder()
+        .setCustomId("continue")
+        .setLabel("Continue")
+        .setStyle(ButtonStyle.Primary);
+
+      const leave = new ButtonBuilder()
+        .setCustomId("leave")
+        .setLabel("Leave Game")
+        .setStyle(ButtonStyle.Secondary);
+
+      const cancel = new ButtonBuilder()
+        .setCustomId("cancel")
+        .setLabel("Cancel Game")
+        .setStyle(ButtonStyle.Danger);
+
+      const row = new ActionRowBuilder().addComponents(
+        continueB,
+        leave,
+        cancel
+      );
+
+      const settingsEmbed = new EmbedBuilder().setTitle("Options");
+
+      const optionFilter = (m) => m.author.id == players.at(0).id;
+
+      optionSelecting = true;
+
+      settingsEmbed.setDescription(
+        `${this.options
+          .map((option, index) => {
+            return `${index + 1}. ${option.name} - **${options[option.name]}**`;
+          })
+          .join("\n")}\n\n${players.at(
+          0
+        )}, change settings by typing the option number`
+      );
+
+      await message.edit({
+        content: "",
+        embeds: [settingsEmbed],
+        components: [row],
+      });
+
+      const bCollector = message.createMessageComponentCollector({
+        componentType: ComponentType.Button,
+        time: 200_000,
+      });
+
+      let oCollector = await channel.createMessageCollector({
+        optionFilter,
+        time: 120_000,
+      });
+
+      let oFilter = (m) => true;
+
+      bCollector.on("collect", async (i) => {
+        if (i.customId === "continue") {
+          if (i.user.id == players.at(0)) {
+            await i.deferUpdate();
+            oCollector.stop();
+          } else {
+            await i.reply(errorEmbed("You are not the owner of this lobby!"));
+          }
+        } else if (i.customId === "cancel") {
+          if (i.user.id == players.at(0)) {
+            collector.stop("cancelled");
+          } else {
+            await i.reply(errorEmbed("You are not the owner of this lobby!"));
+          }
+        } else if (i.customId === "leave") {
+          if (players.has(i.user.id)) {
+            if (players.size < this.properties.minPlayers) {
+              collector.stop("empty");
+              await i.deferUpdate();
+            } else {
+              players.delete(i.user.id);
+
+              await i.reply(successEmbed("You are not in this lobby!"));
+            }
+          } else {
+            await i.reply(errorEmbed("You are not in this lobby!"));
+          }
+        }
+      });
+      oCollector.on("collect", async (m) => {
+        if (
+          optionSelecting &&
+          parseInt(m.content) >= 1 &&
+          parseInt(m.content) <= this.options.length
+        ) {
+          oSelected = this.options[parseInt(m.content) - 1];
+
+          const valueEmbed = new EmbedBuilder()
+            .setTitle(`Editing ${oSelected.name}`)
+            .setDescription(oSelected.desc);
+
+          await message.edit({ embeds: [valueEmbed] });
+
+          oFilter = (m) => oSelected.filter(m);
+          optionSelecting = false;
+        } else if (!optionSelecting && oFilter(m)) {
+          options[oSelected.name] = parseInt(m.content);
+
+          settingsEmbed.setDescription(
+            `${this.options
+              .map((option, index) => {
+                return `${index + 1}. ${option.name} - **${
+                  options[option.name]
+                }**`;
+              })
+              .join("\n")}\n\n${players.at(
+              0
+            )}, change settings by typing the option number`
+          );
+          await message.edit({ embeds: [settingsEmbed] });
+
+          optionSelecting = true;
+        }
+      });
+
+      oCollector.on("end", async (c, r) => {
+        message.delete();
+        if (r == "cancelled") {
+          resolve("cancelled");
+        } else if (r == "empty") {
+          resolve("empty");
+        } else {
+          let game = this.createGame(options, players);
+          resolve(game);
+        }
+      });
+    });
+  },
+
+  emptyBoard(height, width) {
     let board = Array(height);
     for (var i = 0; i < height; i++) {
       board[i] = Array(width);
@@ -209,18 +436,18 @@ module.exports = {
         board[i][j] = -1;
       }
     }
-    
-    return board
+
+    return board;
   },
 
-  createGame(height, width, players) {
+  createGame(options, players) {
     let game = {
-      height: height,
-      width: width,
+      height: options["height"],
+      width: options["width"],
       players: players,
       turn: 1,
-      winLength: 4,
-      board: this.emptyBoard(height,width),
+      winLength: options["winLength"],
+      board: this.emptyBoard(options["height"], options["width"]),
     };
 
     return game;
@@ -235,14 +462,13 @@ module.exports = {
       }
       boardText += "\n";
     }
-    boardText += `\n\n  ${game.players.at((game.turn + 1) % 2).emoji} - ${game.players.at(
-      (game.turn + 1) % 2
-    )}'s turn. (Type 1-7)`;
+    boardText += `\n\n  ${
+      game.players.at((game.turn + 1) % 2).emoji
+    } - ${game.players.at((game.turn + 1) % 2)}'s turn. (Type 1-7)`;
     return new EmbedBuilder().setDescription(boardText);
   },
 
   checkWin(game) {
-
     let b = game.board;
     let wL = game.winLength;
     let h = game.height;
@@ -250,18 +476,28 @@ module.exports = {
 
     //check rows:
     for (var i = 0; i < h; i++) {
-      for (var j=0;j < w - wL + 1;j++) {
+      for (var j = 0; j < w - wL + 1; j++) {
         let c = b[i][j];
-        if (c != -1 && c == b[i][j+1] && c == b[i][j+2] && c == b[i][j+3]) {
+        if (
+          c != -1 &&
+          c == b[i][j + 1] &&
+          c == b[i][j + 2] &&
+          c == b[i][j + 3]
+        ) {
           return c;
         }
       }
     }
 
     for (var i = 0; i < h - wL + 1; i++) {
-      for (var j=0;j < w;j++) {
+      for (var j = 0; j < w; j++) {
         let c = b[i][j];
-        if (c != -1 && c == b[i+1][j] && c == b[i+2][j] && c == b[i+3][j]) {
+        if (
+          c != -1 &&
+          c == b[i + 1][j] &&
+          c == b[i + 2][j] &&
+          c == b[i + 3][j]
+        ) {
           return c;
         }
       }
@@ -269,9 +505,14 @@ module.exports = {
 
     //top-left bottom right diagonals
     for (var i = 0; i < h - wL + 1; i++) {
-      for (var j=0;j < w - wL + 1;j++) {
+      for (var j = 0; j < w - wL + 1; j++) {
         let c = b[i][j];
-        if (c != -1 && c == b[i+1][j+1] && c == b[i+2][j+2] && c == b[i+3][j+3]) {
+        if (
+          c != -1 &&
+          c == b[i + 1][j + 1] &&
+          c == b[i + 2][j + 2] &&
+          c == b[i + 3][j + 3]
+        ) {
           return c;
         }
       }
@@ -279,17 +520,21 @@ module.exports = {
 
     //bottom-left top right diagonals
     for (var i = wL - 1; i < h; i++) {
-      for (var j=0;j < w - wL + 1;j++) {
+      for (var j = 0; j < w - wL + 1; j++) {
         let c = b[i][j];
-        if (c != -1 && c == b[i-1][j+1] && c == b[i-2][j+2] && c == b[i-3][j+3]) {
+        if (
+          c != -1 &&
+          c == b[i - 1][j + 1] &&
+          c == b[i - 2][j + 2] &&
+          c == b[i - 3][j + 3]
+        ) {
           return c;
         }
       }
     }
 
     return -1;
-  }
+  },
 };
-
 
 console.log("TEST");

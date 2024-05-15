@@ -40,7 +40,14 @@ for (const file of eventFiles) {
 	}
 }
 
+client.on("error", (e) => console.error(e));
+client.on("warn", (e) => console.warn(e));
+client.on("debug", (e) => console.info(e));
+process.on('unhandledRejection', error => {
+	console.error('Unhandled promise rejection:', error);
+});
 
 
 // Log in to Discord with your client's token
 client.login(token);
+

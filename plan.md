@@ -1,7 +1,12 @@
 
 - Start by creating connect4 game
-    - Simple 6 x 7
+    - **Simple 6 x 7** 
     - Customization (players, size, emojis)
+    - Remaining functionality #TODO:
+        - Change player amount check to the start button, not at the collection end
+        - Implement max players
+        - Lose on timeout
+        - Set emojis
 - Set up mongodb
     - Create profile / stats
     - Stats for Connect4
