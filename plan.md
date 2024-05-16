@@ -5,8 +5,10 @@
     - Remaining functionality #TODO:
         - Change player amount check to the start button, not at the collection end
         - Implement max players
+        - Timer in footer
         - Lose on timeout
         - Set emojis
+        - Better win screen
 - Set up mongodb
     - Create profile / stats
     - Stats for Connect4

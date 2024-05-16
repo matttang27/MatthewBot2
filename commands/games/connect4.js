@@ -64,6 +64,8 @@ module.exports = {
     },
   ],
   async execute(interaction) {
+
+    const START_TITLE = "Connect4 game created! "
     await interaction.deferReply();
 
     players = new Collection();
@@ -81,6 +83,9 @@ module.exports = {
       .setTitle("Connect4 game created!");
 
     this.updateLobby(players, embed);
+    embed.setTitle(START_TITLE + ` [${players.size}/${this.properties.maxPlayers}]`)
+
+    
 
     const start = new ButtonBuilder()
       .setCustomId("start")
@@ -114,7 +119,12 @@ module.exports = {
     collector.on("collect", async (i) => {
       if (i.customId === "start") {
         if (i.user.id == players.at(0)) {
-          await i.deferUpdate();
+          if (players.size < this.properties.minPlayers) {
+            await i.reply(errorEmbed("Not enough players to start."));
+          } else {
+            await i.deferUpdate();
+          }
+
           collector.stop();
         } else {
           await i.reply(errorEmbed("You are not the owner of this lobby!"));
@@ -147,6 +157,7 @@ module.exports = {
             players.delete(i.user.id);
 
             this.updateLobby(players, embed);
+            embed.setTitle(START_TITLE + ` [${players.size}/${this.properties.maxPlayers}]`)
 
             await response.edit({
               embeds: [embed],
@@ -154,16 +165,21 @@ module.exports = {
             });
           }
         } else {
-          await i.deferUpdate();
+          if (players.size == this.properties.maxPlayers) {
+            await i.reply(errorEmbed("Sorry, the lobby is full!"));
+          } else {
+            await i.deferUpdate();
 
-          players.set(i.user.id, i.user);
+            players.set(i.user.id, i.user);
 
-          this.updateLobby(players, embed);
+            this.updateLobby(players, embed);
+            embed.setTitle(START_TITLE + ` [${players.size}/${this.properties.maxPlayers}]`)
 
-          await response.edit({
-            embeds: [embed],
-            components: [row],
-          });
+            await response.edit({
+              embeds: [embed],
+              components: [row],
+            });
+          }
         }
       }
     });
@@ -185,7 +201,7 @@ module.exports = {
         return;
       }
 
-      embed.setTitle("Connect4 game: setting options");
+      embed.setTitle("Connect4 game: configuring...");
       response.edit({
         embeds: [embed],
         components: [],
@@ -218,7 +234,7 @@ module.exports = {
         embeds: [embed],
       });
 
-      for (var i=0;i<game.players.size;i++) {
+      for (var i = 0; i < game.players.size; i++) {
         players.at(i).emoji = this.defaultEmojis[i];
       }
 
@@ -317,7 +333,7 @@ module.exports = {
 
       const settingsEmbed = new EmbedBuilder().setTitle("Options");
 
-      const optionFilter = (m) => m.author.id == players.at(0).id;
+      let optionFilter = (m) => (m.author.id == players.at(0).id);
 
       optionSelecting = true;
 
@@ -343,7 +359,7 @@ module.exports = {
       });
 
       let oCollector = await channel.createMessageCollector({
-        optionFilter,
+        filter: optionFilter,
         time: 120_000,
       });
 
@@ -386,16 +402,23 @@ module.exports = {
         ) {
           oSelected = this.options[parseInt(m.content) - 1];
 
+          
+
           const valueEmbed = new EmbedBuilder()
             .setTitle(`Editing ${oSelected.name}`)
             .setDescription(oSelected.desc);
 
           await message.edit({ embeds: [valueEmbed] });
 
-          oFilter = (m) => oSelected.filter(m);
+          oFilter = (m) => oSelected.filter(m) && m.author.id == players.at(0).id;
           optionSelecting = false;
         } else if (!optionSelecting && oFilter(m)) {
           options[oSelected.name] = parseInt(m.content);
+
+          //making sure winLength is at least minimum of width and height
+          if (options.winLength > options.width && options.winLength > options.height) {
+            options.winLength = Math.min(options.width, options.height);
+          }
 
           settingsEmbed.setDescription(
             `${this.options
