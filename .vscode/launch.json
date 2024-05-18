@@ -29,7 +29,7 @@
                 "${workspaceRoot}/dist/**/*"
             ],
             "envFile": "${workspaceRoot}/.env"
-        }
+        },
             {
             "type": "node",
             "request": "launch",
