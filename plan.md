@@ -13,3 +13,4 @@
     - Create profile / stats
     - Stats for Connect4
 - Then extend to all games (GameManager)
+- Write testing suite (maybe sooner rather than later)

@@ -64,8 +64,7 @@ module.exports = {
     },
   ],
   async execute(interaction) {
-
-    const START_TITLE = "Connect4 game created! "
+    const START_TITLE = "Connect4 game created! ";
     await interaction.deferReply();
 
     players = new Collection();
@@ -83,9 +82,9 @@ module.exports = {
       .setTitle("Connect4 game created!");
 
     this.updateLobby(players, embed);
-    embed.setTitle(START_TITLE + ` [${players.size}/${this.properties.maxPlayers}]`)
-
-    
+    embed.setTitle(
+      START_TITLE + ` [${players.size}/${this.properties.maxPlayers}]`
+    );
 
     const start = new ButtonBuilder()
       .setCustomId("start")
@@ -157,7 +156,9 @@ module.exports = {
             players.delete(i.user.id);
 
             this.updateLobby(players, embed);
-            embed.setTitle(START_TITLE + ` [${players.size}/${this.properties.maxPlayers}]`)
+            embed.setTitle(
+              START_TITLE + ` [${players.size}/${this.properties.maxPlayers}]`
+            );
 
             await response.edit({
               embeds: [embed],
@@ -173,7 +174,9 @@ module.exports = {
             players.set(i.user.id, i.user);
 
             this.updateLobby(players, embed);
-            embed.setTitle(START_TITLE + ` [${players.size}/${this.properties.maxPlayers}]`)
+            embed.setTitle(
+              START_TITLE + ` [${players.size}/${this.properties.maxPlayers}]`
+            );
 
             await response.edit({
               embeds: [embed],
@@ -333,7 +336,7 @@ module.exports = {
 
       const settingsEmbed = new EmbedBuilder().setTitle("Options");
 
-      let optionFilter = (m) => (m.author.id == players.at(0).id);
+      let optionFilter = (m) => m.author.id == players.at(0).id;
 
       optionSelecting = true;
 
@@ -402,21 +405,23 @@ module.exports = {
         ) {
           oSelected = this.options[parseInt(m.content) - 1];
 
-          
-
           const valueEmbed = new EmbedBuilder()
             .setTitle(`Editing ${oSelected.name}`)
             .setDescription(oSelected.desc);
 
           await message.edit({ embeds: [valueEmbed] });
 
-          oFilter = (m) => oSelected.filter(m) && m.author.id == players.at(0).id;
+          oFilter = (m) =>
+            oSelected.filter(m) && m.author.id == players.at(0).id;
           optionSelecting = false;
         } else if (!optionSelecting && oFilter(m)) {
           options[oSelected.name] = parseInt(m.content);
 
           //making sure winLength is at least minimum of width and height
-          if (options.winLength > options.width && options.winLength > options.height) {
+          if (
+            options.winLength > options.width &&
+            options.winLength > options.height
+          ) {
             options.winLength = Math.min(options.width, options.height);
           }
 
@@ -463,6 +468,16 @@ module.exports = {
     return board;
   },
 
+  /**
+ * Creates a new game with the specified options and players.
+ *
+ * @param {Object} options - The game options.
+ * @param {number} options.height - The height of the game board.
+ * @param {number} options.width - The width of the game board.
+ * @param {number} options.winLength - The number of consecutive pieces needed to win.
+ * @param {Array} players - An array of player objects.
+ * @returns {Object} - The newly created game object.
+ */
   createGame(options, players) {
     let game = {
       height: options["height"],
@@ -492,72 +507,59 @@ module.exports = {
   },
 
   checkWin(game) {
+
+    //check rows:
+    if (this.checkDirection(game,1,0) != -1) return this.checkDirection(game,1,0)
+
+    //check columns:
+    if (this.checkDirection(game,0,1) != -1) return this.checkDirection(game,0,1)
+
+    //top-left bottom right diagonals
+    if (this.checkDirection(game,1,1) != -1) return this.checkDirection(game,1,1)
+
+    //bottom-left top right diagonals
+    if (this.checkDirection(game,1,-1) != -1) return this.checkDirection(game,1,-1)
+
+    return -1;
+  },
+
+  checkDirection(game,dX,dY) {
     let b = game.board;
     let wL = game.winLength;
     let h = game.height;
     let w = game.width;
 
-    //check rows:
-    for (var i = 0; i < h; i++) {
-      for (var j = 0; j < w - wL + 1; j++) {
-        let c = b[i][j];
-        if (
-          c != -1 &&
-          c == b[i][j + 1] &&
-          c == b[i][j + 2] &&
-          c == b[i][j + 3]
-        ) {
-          return c;
-        }
-      }
-    }
+    //make dX and dY work for any value (if I wanted to expand c4)
+    //area = 1 + (winLength - 1) * d
+    //example: winLength = 3, delta = 2 (there is a gap)
+    //OOOXOXOX, area to check is 5 (1 + (3 - 1) * 2)
+    dXA = 1 + (wL - 1) * Math.abs(dX)
+    dYA = 1 + (wL - 1) * Math.abs(dY)
 
-    for (var i = 0; i < h - wL + 1; i++) {
-      for (var j = 0; j < w; j++) {
-        let c = b[i][j];
-        if (
-          c != -1 &&
-          c == b[i + 1][j] &&
-          c == b[i + 2][j] &&
-          c == b[i + 3][j]
-        ) {
-          return c;
-        }
-      }
-    }
+    // () = inclusive, [] = exclusive
 
-    //top-left bottom right diagonals
-    for (var i = 0; i < h - wL + 1; i++) {
-      for (var j = 0; j < w - wL + 1; j++) {
-        let c = b[i][j];
-        if (
-          c != -1 &&
-          c == b[i + 1][j + 1] &&
-          c == b[i + 2][j + 2] &&
-          c == b[i + 3][j + 3]
-        ) {
-          return c;
-        }
-      }
-    }
+    /*
+    dY = 0, (0,h]
+    dY = 1, (0,h-(dXA-1)]
+    dy = -1, (dXA-1,h]
+    dY = 2, (0,h-(dXA-1))
+    */
 
-    //bottom-left top right diagonals
-    for (var i = wL - 1; i < h; i++) {
-      for (var j = 0; j < w - wL + 1; j++) {
-        let c = b[i][j];
-        if (
-          c != -1 &&
-          c == b[i - 1][j + 1] &&
-          c == b[i - 2][j + 2] &&
-          c == b[i - 3][j + 3]
-        ) {
-          return c;
+    for (var i = ((dY < 0) ? dYA - 1 : 0); i < h - ((dY > 0) ? dYA - 1 : 0); i++) {
+      for (var j = ((dX < 0) ? dXA - 1 : 0); j < w - ((dX > 0) ? dXA - 1 : 0); j++) {
+        if (b[i][j] == -1) continue;
+        for (var l = 1; l < wL; l++) {
+          if (b[i + (dY * l)][j + (dX * l)] != b[i][j]) {
+            break;
+          } else if (l == wL - 1) {
+            return b[i][j];
+          }
         }
       }
     }
 
     return -1;
-  },
+  }
 };
 
 console.log("TEST");
