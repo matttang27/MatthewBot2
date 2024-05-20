@@ -15,6 +15,10 @@
             "runtimeExecutable": "nodemon",
             "console": "integratedTerminal",
             "restart": true,
+            "runtimeArgs": [
+                
+                "test" // Replace "yourArgument" with the actual argument you want to pass
+            ]
         },
         {
             "type": "node",

@@ -1,0 +1,422 @@
+const {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  SlashCommandBuilder,
+  EmbedBuilder,
+  PermissionsBitField,
+  ComponentType,
+  Collection,
+  MessageType,
+} = require("discord.js");
+
+const {
+  errorEmbed,
+  successEmbed,
+  returnEmotes,
+} = require("../../functions");
+
+class Game {
+  constructor(interaction) {
+    this.properties = {
+      gameName: "game",
+      minPlayers: 2,
+      maxPlayers: 4,
+    };
+    this.options = [{
+      name: "example",
+      label: "Example setting",
+      desc: "This is an example",
+      type: "num",
+      value: 5,
+      filter: (m) =>
+        !isNaN(m.content) &&
+        parseInt(m.content) >= 2 &&
+        parseInt(m.content) <= 20,
+    }];
+
+    this.interaction = interaction;
+    this.channel = interaction.channel;
+    this.response;
+    this.startTime = new Date(Date.now());
+    this.players = new Collection().set(
+      interaction.user.id,
+      interaction.user
+    );
+    this.currentOptions = {};
+    this.phase = "";
+    this.winner = null;
+  }
+  async create() {
+    try {
+      this.response = await this.interaction.deferReply()
+
+      this.stage = "lobby";
+      await this.lobby();
+
+      this.stage = "settings";
+      await this.inputSettings();
+
+      this.stage = "ingame";
+      await this.playGame();
+
+      this.stage = "winScreen";
+      await this.winScreen();
+
+      this.stage = "finished";
+    } catch (err) {
+      const cancelledEmbed = new EmbedBuilder()
+        .setColor("Red")
+        .setTitle(`${this.properties.gameName} game cancelled`);
+
+      if (err == "cancelled") {
+        cancelledEmbed.setDescription("Blame the leader");
+      } else if (err == "empty") {
+        cancelledEmbed.setDescription("Everyone left? Y'all scared?");
+      } else if (err == "not enough") {
+        cancelledEmbed.setDescription("Not enough players! Fake friends fr");
+      } else {
+        console.log(err);
+        return;
+      }
+      await this.response.edit({ embeds: [cancelledEmbed], components: [] });
+    }
+  }
+
+  /**
+   * @param {Discord.MessageEmbed} embed the embed to edit
+   */
+  updateLobby(embed) {
+    let playerString = ``;
+    for (var i = 0; i < this.players.size; i++) {
+      if (i == 0) {
+        playerString += `${this.players.at(i)} - :crown:\n`;
+      } else {
+        playerString += `${this.players.at(i)}\n`;
+      }
+    }
+    embed.setDescription(playerString);
+  }
+  /**
+   *
+   * @returns {Promise} whether the lobby was successful
+   */
+  async lobby() {
+    return new Promise(async (resolve, reject) => {
+      const START_TITLE = `${this.properties.gameName} game created! `;
+
+      /*
+            let p1 = await interaction.guild.members.fetch("576031405037977600");
+            let p2 = await interaction.guild.members.fetch("720352012402688000");
+            players.set("576031405037977600", p1);
+            players.set("720352012402688000", p2);*/
+
+      const embed = new EmbedBuilder()
+        .setColor("Green")
+        .setTitle("Connect4 game created!");
+
+      this.updateLobby(embed);
+      embed.setTitle(
+        START_TITLE + ` [${this.players.size}/${this.properties.maxPlayers}]`
+      );
+
+      const start = new ButtonBuilder()
+        .setCustomId("start")
+        .setLabel("Start")
+        .setStyle(ButtonStyle.Primary);
+
+      const join = new ButtonBuilder()
+        .setCustomId("joinleave")
+        .setLabel("Join / Leave")
+        .setStyle(ButtonStyle.Secondary);
+
+      const cancel = new ButtonBuilder()
+        .setCustomId("cancel")
+        .setLabel("Cancel")
+        .setStyle(ButtonStyle.Danger);
+
+      const row = new ActionRowBuilder().addComponents(start, join, cancel);
+
+      await this.interaction.editReply({
+        embeds: [embed],
+        components: [row],
+      });
+
+      let cancelled = false;
+
+      const collector = this.response.createMessageComponentCollector({
+        componentType: ComponentType.Button,
+        time: 240_000,
+      });
+
+      collector.on("collect", async (i) => {
+        if (i.customId === "start") {
+          if (i.user.id == this.players.at(0)) {
+            if (this.players.size < this.properties.minPlayers) {
+              await i.reply(errorEmbed("Not enough players to start."));
+            } else {
+              await i.deferUpdate();
+            }
+
+            collector.stop();
+          } else {
+            await i.reply(errorEmbed("You are not the owner of this lobby!"));
+          }
+        } else if (i.customId === "cancel") {
+          if (i.user.id == this.players.at(0)) {
+            cancelled = true;
+            collector.stop("cancelled");
+          } else {
+            await i.reply(errorEmbed("You are not the owner of this lobby!"));
+          }
+        } else if (i.customId === "joinleave") {
+          if (this.players.has(i.user.id)) {
+            await i.deferUpdate();
+
+            if (this.players.size == 1) {
+              cancelled = true;
+              collector.stop("empty");
+            } else {
+              this.players.delete(i.user.id);
+
+              this.updateLobby(embed);
+              embed.setTitle(
+                START_TITLE +
+                  ` [${this.players.size}/${this.properties.maxPlayers}]`
+              );
+
+              await this.response.edit({
+                embeds: [embed],
+                components: [row],
+              });
+            }
+          } else {
+            if (this.players.size == this.properties.maxPlayers) {
+              await i.reply(errorEmbed("Sorry, the lobby is full!"));
+            } else {
+              await i.deferUpdate();
+
+              this.players.set(i.user.id, i.user);
+
+              this.updateLobby(embed);
+              embed.setTitle(
+                START_TITLE +
+                  ` [${this.players.size}/${this.properties.maxPlayers}]`
+              );
+
+              await this.response.edit({
+                embeds: [embed],
+                components: [row],
+              });
+            }
+          }
+        }
+      });
+
+      collector.once("end", async (collected, reason) => {
+        if (reason == "cancelled" || reason == "empty") {
+          reject(reason);
+        }
+
+        if (this.players.size < this.properties.minPlayers) {
+          reject("not enough");
+        }
+
+        embed.setTitle(`${this.properties.gameName} game: configuring...`);
+        this.response.edit({
+          embeds: [embed],
+          components: [],
+        });
+
+        resolve();
+      });
+    });
+  }
+  /**
+   *
+   * @returns {Promise} whether the game should continue (not cancelled)
+   */
+  async inputSettings() {
+    return new Promise(async (resolve, reject) => {
+      this.currentOptions = this.options.reduce((obj, cur) => {
+        obj[cur.name] = cur.value;
+        return obj;
+      }, {});
+
+      let message = await this.channel.send({ content: "Loading Settings" });
+      const continueB = new ButtonBuilder()
+        .setCustomId("continue")
+        .setLabel("Continue")
+        .setStyle(ButtonStyle.Primary);
+
+      const leave = new ButtonBuilder()
+        .setCustomId("leave")
+        .setLabel("Leave Game")
+        .setStyle(ButtonStyle.Secondary);
+
+      const cancel = new ButtonBuilder()
+        .setCustomId("cancel")
+        .setLabel("Cancel Game")
+        .setStyle(ButtonStyle.Danger);
+
+      const row = new ActionRowBuilder().addComponents(
+        continueB,
+        leave,
+        cancel
+      );
+
+      const settingsEmbed = new EmbedBuilder().setTitle("Options");
+
+      let optionFilter = (m) => m.author.id == this.players.at(0).id;
+
+      var optionSelecting = true;
+
+      settingsEmbed.setDescription(
+        `${this.options
+          .map((option, index) => {
+            return `${index + 1}. ${option.name} - **${this.currentOptions[option.name]}**`;
+          })
+          .join("\n")}\n\n${this.players.at(
+          0
+        )}, change settings by typing the option number`
+      );
+
+      await message.edit({
+        content: "",
+        embeds: [settingsEmbed],
+        components: [row],
+      });
+
+      const bCollector = message.createMessageComponentCollector({
+        componentType: ComponentType.Button,
+        time: 200_000,
+      });
+
+      let oCollector = await this.channel.createMessageCollector({
+        filter: optionFilter,
+        time: 120_000,
+      });
+
+      let oFilter = (m) => true;
+
+      let oSelected;
+
+      bCollector.on("collect", async (i) => {
+        if (i.customId === "continue") {
+          if (i.user.id == this.players.at(0)) {
+            await i.deferUpdate();
+            oCollector.stop();
+          } else {
+            await i.reply(errorEmbed("You are not the owner of this lobby!"));
+          }
+        } else if (i.customId === "cancel") {
+          if (i.user.id == this.players.at(0)) {
+            collector.stop("cancelled");
+          } else {
+            await i.reply(errorEmbed("You are not the owner of this lobby!"));
+          }
+        } else if (i.customId === "leave") {
+          if (this.players.has(i.user.id)) {
+            if (this.players.size < this.properties.minPlayers) {
+              collector.stop("not enough");
+              await i.deferUpdate();
+            } else {
+              this.players.delete(i.user.id);
+
+              await i.reply(successEmbed("You are not in this lobby!"));
+            }
+          } else {
+            await i.reply(errorEmbed("You are not in this lobby!"));
+          }
+        }
+      });
+      oCollector.on("collect", async (m) => {
+        if (
+          optionSelecting &&
+          parseInt(m.content) >= 1 &&
+          parseInt(m.content) <= this.options.length
+        ) {
+          oSelected = this.options[parseInt(m.content) - 1];
+
+          const valueEmbed = new EmbedBuilder()
+            .setTitle(`Editing ${oSelected.name}`)
+            .setDescription(oSelected.desc);
+
+          await message.edit({ embeds: [valueEmbed] });
+
+          oFilter = (m) =>
+            oSelected.filter(m) && m.author.id == this.players.at(0).id;
+          optionSelecting = false;
+        } else if (!optionSelecting && oFilter(m)) {
+          this.currentOptions[oSelected.name] = parseInt(m.content);
+
+          //making sure winLength is at least minimum of width and height
+          /*
+          if (
+            this.currentOptions.winLength > this.currentOptions.width &&
+            this.currentOptions.winLength > this.currentOptions.height
+          ) {
+            options.winLength = Math.min(options.width, options.height);
+          }*/
+
+          settingsEmbed.setDescription(
+            `${this.options
+              .map((option, index) => {
+                return `${index + 1}. ${option.name} - **${
+                  this.currentOptions[option.name]
+                }**`;
+              })
+              .join("\n")}\n\n${this.players.at(
+              0
+            )}, change settings by typing the option number`
+          );
+          await message.edit({ embeds: [settingsEmbed] });
+
+          optionSelecting = true;
+        }
+      });
+
+      oCollector.on("end", async (c, r) => {
+        message.delete();
+        if (r == "cancelled" || r == "empty" || r == "not enough") {
+          reject(r);
+        } else {
+          resolve();
+        }
+      });
+    });
+  }
+  /**
+   *
+   * @returns {Promise} rejected if no winner
+   */
+  playGame() {
+    /*replace with game*/
+    return new Promise(async (resolve, reject) => {
+      this.winner = this.players.at(0);
+      resolve();
+    });
+  }
+  winScreen() {
+    return new Promise(async (resolve, reject) => {
+      if (this.winner != null) {
+        const victoryEmbed = new EmbedBuilder()
+        .setTitle("We have a winner!")
+        .setDescription(`All hail ${this.winner}`)
+        .setColor("Green");
+        await this.channel.send({ embeds: [victoryEmbed] });
+        resolve();
+      } else {
+        const noVictoryEmbed = new EmbedBuilder()
+        .setTitle("There was no winner...")
+        .setDescription(`Everyone's a loser.`)
+        .setColor("Red");
+        await this.channel.send({ embeds: [noVictoryEmbed] });
+        resolve();
+      }
+      
+    });
+  }
+}
+
+module.exports = Game;

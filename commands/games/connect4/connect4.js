@@ -10,13 +10,14 @@ const {
   MessageType,
 } = require("discord.js");
 
-const { errorEmbed, successEmbed, returnEmotes } = require("../../functions");
+const { errorEmbed, successEmbed, returnEmotes } = require("../../../functions");
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("connect4")
     .setDescription("Creates a new Connect4 game"),
   properties: {
+    game: "connect4",
     minPlayers: 2,
     maxPlayers: 10,
   },
@@ -64,6 +65,30 @@ module.exports = {
     },
   ],
   async execute(interaction) {
+    // lobby:
+
+    let players = await this.lobby(interaction);
+
+    if (players == null) return;
+
+    // settings:
+
+    
+
+    let game = await this.inputSettings(interaction, players);
+
+    if (game == "cancelled" || game == "empty") return;
+
+    // Start game
+
+    this.game(interaction, game);
+  },
+
+  async lobby(interaction) {
+
+    return new Promise(async (resolve, reject) => {
+
+    
     const START_TITLE = "Connect4 game created! ";
     await interaction.deferReply();
 
@@ -189,19 +214,19 @@ module.exports = {
 
     collector.once("end", async (collected) => {
       if (cancelled) {
-        return;
+        resolve(null);
       }
 
       if (players.size < this.properties.minPlayers) {
         const errorEmbed = new EmbedBuilder()
           .setColor("Red")
-          .setDescription("Not enough players! Game cancelled.");
+          .setDescription("Not enough players joined in time! Game cancelled.");
         response.edit({
           embeds: [errorEmbed],
           components: [],
         });
 
-        return;
+        resolve(null);
       }
 
       embed.setTitle("Connect4 game: configuring...");
@@ -210,89 +235,9 @@ module.exports = {
         components: [],
       });
 
-      // settings:
-
-      let channel = interaction.channel;
-
-      let game = await this.inputSettings(players, channel);
-
-      if (game == "cancelled") {
-        const cancelledEmbed = new EmbedBuilder()
-          .setColor("Red")
-          .setTitle("Connect4 game cancelled")
-          .setDescription("Blame the leader");
-        await response.edit({ embeds: [cancelledEmbed], components: [] });
-        return;
-      } else if (game == "empty") {
-        const cancelledEmbed = new EmbedBuilder()
-          .setColor("Red")
-          .setTitle("Connect4 game cancelled")
-          .setDescription("Everyone left? Y'all scared?");
-        await response.edit({ embeds: [cancelledEmbed], components: [] });
-        return;
-      }
-
-      embed.setTitle("Connect4 game in-progress!");
-      response.edit({
-        embeds: [embed],
-      });
-
-      for (var i = 0; i < game.players.size; i++) {
-        players.at(i).emoji = this.defaultEmojis[i];
-      }
-
-      // Start game
-
-      while (true) {
-        if (game.turn > game.height * game.width) {
-          console.log("draw");
-
-          const drawEmbed = new EmbedBuilder()
-            .setTitle("Game ended in draw!")
-            .setFooter({ text: "everyone's a loser" });
-          channel.send({
-            embeds: [drawEmbed],
-          });
-
-          return;
-        }
-        await channel.send({ embeds: [this.printBoard(game)], components: [] });
-
-        const filter = (m) =>
-          m.author.id === game.players.at((game.turn + 1) % 2).id &&
-          parseInt(m.content) >= 1 &&
-          parseInt(m.content) <= game.width &&
-          game.board[0][parseInt(m.content) - 1] == -1;
-
-        const collected = await channel
-          .awaitMessages({ filter, max: 1, time: 60_000, errors: ["time"] })
-          .catch((err) => {
-            channel.send("You ran out of time!");
-          });
-
-        let move = parseInt(collected.first().content) - 1;
-
-        for (i = game.height - 1; i >= 0; i--) {
-          if (game.board[i][move] == -1) {
-            game.board[i][move] = game.players.at((game.turn + 1) % 2);
-            break;
-          }
-        }
-
-        if (this.checkWin(game) != -1) {
-          const victoryEmbed = new EmbedBuilder()
-            .setTitle("We have a winner!")
-            .setDescription(`All hail ${this.checkWin(game)}`)
-            .setColor("Green");
-          await channel.send({ embeds: [victoryEmbed] });
-
-          return;
-        }
-
-        game.turn++;
-      }
+      resolve(players);
     });
-  },
+  })},
   updateLobby(players, embed) {
     playerString = ``;
     for (i = 0; i < players.size; i++) {
@@ -378,6 +323,11 @@ module.exports = {
           }
         } else if (i.customId === "cancel") {
           if (i.user.id == players.at(0)) {
+            const cancelledEmbed = new EmbedBuilder()
+              .setColor("Red")
+              .setTitle("Connect4 game cancelled")
+              .setDescription("Blame the leader");
+            await response.edit({ embeds: [cancelledEmbed], components: [] });
             collector.stop("cancelled");
           } else {
             await i.reply(errorEmbed("You are not the owner of this lobby!"));
@@ -385,6 +335,12 @@ module.exports = {
         } else if (i.customId === "leave") {
           if (players.has(i.user.id)) {
             if (players.size < this.properties.minPlayers) {
+              const cancelledEmbed = new EmbedBuilder()
+                .setColor("Red")
+                .setTitle("Connect4 game cancelled")
+                .setDescription("Not enough players. Y'all scared?");
+              await response.edit({ embeds: [cancelledEmbed], components: [] });
+
               collector.stop("empty");
               await i.deferUpdate();
             } else {
@@ -449,13 +405,71 @@ module.exports = {
         } else if (r == "empty") {
           resolve("empty");
         } else {
+          for (var i = 0; i < players.size; i++) {
+            players.at(i).emoji = this.defaultEmojis[i];
+          }
           let game = this.createGame(options, players);
+
+          embed.setTitle("Connect4 game in-progress!");
+          response.edit({
+            embeds: [embed],
+          });
           resolve(game);
         }
       });
     });
   },
 
+  async game(channel, game) {
+    while (true) {
+      if (game.turn > game.height * game.width) {
+        console.log("draw");
+
+        const drawEmbed = new EmbedBuilder()
+          .setTitle("Game ended in draw!")
+          .setFooter({ text: "everyone's a loser" });
+        channel.send({
+          embeds: [drawEmbed],
+        });
+
+        return;
+      }
+      await channel.send({ embeds: [this.printBoard(game)], components: [] });
+
+      const filter = (m) =>
+        m.author.id === game.players.at((game.turn + 1) % 2).id &&
+        parseInt(m.content) >= 1 &&
+        parseInt(m.content) <= game.width &&
+        game.board[0][parseInt(m.content) - 1] == -1;
+
+      const collected = await channel
+        .awaitMessages({ filter, max: 1, time: 60_000, errors: ["time"] })
+        .catch((err) => {
+          channel.send("You ran out of time!");
+        });
+
+      let move = parseInt(collected.first().content) - 1;
+
+      for (i = game.height - 1; i >= 0; i--) {
+        if (game.board[i][move] == -1) {
+          game.board[i][move] = game.players.at((game.turn + 1) % 2);
+          break;
+        }
+      }
+
+      if (this.checkWin(game) != -1) {
+        const victoryEmbed = new EmbedBuilder()
+          .setTitle("We have a winner!")
+          .setDescription(`All hail ${this.checkWin(game)}`)
+          .setColor("Green");
+        await channel.send({ embeds: [victoryEmbed] });
+
+        return;
+      }
+
+      game.turn++;
+    }
+  },
   emptyBoard(height, width) {
     let board = Array(height);
     for (var i = 0; i < height; i++) {
@@ -469,15 +483,15 @@ module.exports = {
   },
 
   /**
- * Creates a new game with the specified options and players.
- *
- * @param {Object} options - The game options.
- * @param {number} options.height - The height of the game board.
- * @param {number} options.width - The width of the game board.
- * @param {number} options.winLength - The number of consecutive pieces needed to win.
- * @param {Array} players - An array of player objects.
- * @returns {Object} - The newly created game object.
- */
+   * Creates a new game with the specified options and players.
+   *
+   * @param {Object} options - The game options.
+   * @param {number} options.height - The height of the game board.
+   * @param {number} options.width - The width of the game board.
+   * @param {number} options.winLength - The number of consecutive pieces needed to win.
+   * @param {Array} players - An array of player objects.
+   * @returns {Object} - The newly created game object.
+   */
   createGame(options, players) {
     let game = {
       height: options["height"],
@@ -507,23 +521,26 @@ module.exports = {
   },
 
   checkWin(game) {
-
     //check rows:
-    if (this.checkDirection(game,1,0) != -1) return this.checkDirection(game,1,0)
+    if (this.checkDirection(game, 1, 0) != -1)
+      return this.checkDirection(game, 1, 0);
 
     //check columns:
-    if (this.checkDirection(game,0,1) != -1) return this.checkDirection(game,0,1)
+    if (this.checkDirection(game, 0, 1) != -1)
+      return this.checkDirection(game, 0, 1);
 
     //top-left bottom right diagonals
-    if (this.checkDirection(game,1,1) != -1) return this.checkDirection(game,1,1)
+    if (this.checkDirection(game, 1, 1) != -1)
+      return this.checkDirection(game, 1, 1);
 
     //bottom-left top right diagonals
-    if (this.checkDirection(game,1,-1) != -1) return this.checkDirection(game,1,-1)
+    if (this.checkDirection(game, 1, -1) != -1)
+      return this.checkDirection(game, 1, -1);
 
     return -1;
   },
 
-  checkDirection(game,dX,dY) {
+  checkDirection(game, dX, dY) {
     let b = game.board;
     let wL = game.winLength;
     let h = game.height;
@@ -533,8 +550,8 @@ module.exports = {
     //area = 1 + (winLength - 1) * d
     //example: winLength = 3, delta = 2 (there is a gap)
     //OOOXOXOX, area to check is 5 (1 + (3 - 1) * 2)
-    dXA = 1 + (wL - 1) * Math.abs(dX)
-    dYA = 1 + (wL - 1) * Math.abs(dY)
+    dXA = 1 + (wL - 1) * Math.abs(dX);
+    dYA = 1 + (wL - 1) * Math.abs(dY);
 
     // () = inclusive, [] = exclusive
 
@@ -545,11 +562,11 @@ module.exports = {
     dY = 2, (0,h-(dXA-1))
     */
 
-    for (var i = ((dY < 0) ? dYA - 1 : 0); i < h - ((dY > 0) ? dYA - 1 : 0); i++) {
-      for (var j = ((dX < 0) ? dXA - 1 : 0); j < w - ((dX > 0) ? dXA - 1 : 0); j++) {
+    for (var i = dY < 0 ? dYA - 1 : 0; i < h - (dY > 0 ? dYA - 1 : 0); i++) {
+      for (var j = dX < 0 ? dXA - 1 : 0; j < w - (dX > 0 ? dXA - 1 : 0); j++) {
         if (b[i][j] == -1) continue;
         for (var l = 1; l < wL; l++) {
-          if (b[i + (dY * l)][j + (dX * l)] != b[i][j]) {
+          if (b[i + dY * l][j + dX * l] != b[i][j]) {
             break;
           } else if (l == wL - 1) {
             return b[i][j];
@@ -559,7 +576,7 @@ module.exports = {
     }
 
     return -1;
-  }
+  },
 };
 
 console.log("TEST");
