@@ -38,6 +38,7 @@ class Game {
     this.interaction = interaction;
     this.channel = interaction.channel;
     this.response;
+    this.mainEmbed;
     this.startTime = new Date(Date.now());
     this.players = new Collection().set(
       interaction.user.id,
@@ -83,10 +84,8 @@ class Game {
     }
   }
 
-  /**
-   * @param {Discord.MessageEmbed} embed the embed to edit
-   */
-  updateLobby(embed) {
+
+  updateLobby() {
     let playerString = ``;
     for (var i = 0; i < this.players.size; i++) {
       if (i == 0) {
@@ -95,7 +94,7 @@ class Game {
         playerString += `${this.players.at(i)}\n`;
       }
     }
-    embed.setDescription(playerString);
+    this.mainEmbed.setDescription(playerString);
   }
   /**
    *
@@ -111,12 +110,12 @@ class Game {
             players.set("576031405037977600", p1);
             players.set("720352012402688000", p2);*/
 
-      const embed = new EmbedBuilder()
+      this.mainEmbed = new EmbedBuilder()
         .setColor("Green")
         .setTitle("Connect4 game created!");
 
-      this.updateLobby(embed);
-      embed.setTitle(
+      this.updateLobby();
+      this.mainEmbed.setTitle(
         START_TITLE + ` [${this.players.size}/${this.properties.maxPlayers}]`
       );
 
@@ -138,7 +137,7 @@ class Game {
       const row = new ActionRowBuilder().addComponents(start, join, cancel);
 
       await this.interaction.editReply({
-        embeds: [embed],
+        embeds: [this.mainEmbed],
         components: [row],
       });
 
@@ -179,14 +178,14 @@ class Game {
             } else {
               this.players.delete(i.user.id);
 
-              this.updateLobby(embed);
-              embed.setTitle(
+              this.updateLobby();
+              this.mainEmbed.setTitle(
                 START_TITLE +
                   ` [${this.players.size}/${this.properties.maxPlayers}]`
               );
 
               await this.response.edit({
-                embeds: [embed],
+                embeds: [this.mainEmbed],
                 components: [row],
               });
             }
@@ -198,14 +197,14 @@ class Game {
 
               this.players.set(i.user.id, i.user);
 
-              this.updateLobby(embed);
-              embed.setTitle(
+              this.updateLobby();
+              this.mainEmbed.setTitle(
                 START_TITLE +
                   ` [${this.players.size}/${this.properties.maxPlayers}]`
               );
 
               await this.response.edit({
-                embeds: [embed],
+                embeds: [this.mainEmbed],
                 components: [row],
               });
             }
@@ -222,9 +221,9 @@ class Game {
           reject("not enough");
         }
 
-        embed.setTitle(`${this.properties.gameName} game: configuring...`);
+        this.mainEmbed.setTitle(`${this.properties.gameName} game: configuring...`);
         this.response.edit({
-          embeds: [embed],
+          embeds: [this.mainEmbed],
           components: [],
         });
 
@@ -381,6 +380,12 @@ class Game {
         if (r == "cancelled" || r == "empty" || r == "not enough") {
           reject(r);
         } else {
+
+          this.mainEmbed.setTitle(`${this.properties.gameName} game ongoing!`);
+          this.response.edit({
+            embeds: [this.mainEmbed],
+            components: [],
+          });
           resolve();
         }
       });
@@ -399,6 +404,12 @@ class Game {
   }
   winScreen() {
     return new Promise(async (resolve, reject) => {
+
+      this.mainEmbed.setTitle(`${this.properties.gameName} game finished!`)
+      this.response.edit({
+        embeds: [this.mainEmbed],
+        components: [],
+      });
       if (this.winner != null) {
         const victoryEmbed = new EmbedBuilder()
         .setTitle("We have a winner!")

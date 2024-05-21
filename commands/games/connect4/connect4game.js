@@ -1,3 +1,21 @@
+const {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  SlashCommandBuilder,
+  EmbedBuilder,
+  PermissionsBitField,
+  ComponentType,
+  Collection,
+  MessageType,
+} = require("discord.js");
+
+const {
+  errorEmbed,
+  successEmbed,
+  returnEmotes,
+} = require("../../../functions");
+
 const Game = require("../game");
 
 class Connect4Game extends Game {
@@ -5,19 +23,19 @@ class Connect4Game extends Game {
     super(interaction);
 
     this.properties = {
-      gameName: "game",
+      gameName: "Connect4",
       minPlayers: 2,
-      maxPlayers: 4,
+      maxPlayers: 6,
     };
-    (this.defaultEmojis = [
+    this.defaultEmojis = [
       ":blue_circle:",
       ":red_circle:",
       ":yellow_circle:",
       ":purple_circle:",
       ":green_circle:",
       ":orange_circle:",
-    ]),
-      (this.options = [
+    ]
+      this.options = [
         {
           name: "height",
           label: "Height",
@@ -51,31 +69,39 @@ class Connect4Game extends Game {
             parseInt(m.content) >= 2 &&
             parseInt(m.content) <= 10,
         },
-      ]);
+      ]
+      this.turn = 1
+      this.board;
   }
-  async playGame(channel, game) {
+  async playGame() {
+    return new Promise(async (resolve, reject) => {
+
+    
+    this.setEmptyBoard();
+    this.setEmojis();
+
     while (true) {
-      if (game.turn > game.height * game.width) {
+      if (this.turn > this.currentOptions.height * this.currentOptions.width) {
         console.log("draw");
 
         const drawEmbed = new EmbedBuilder()
           .setTitle("Game ended in draw!")
           .setFooter({ text: "everyone's a loser" });
-        channel.send({
+        this.channel.send({
           embeds: [drawEmbed],
         });
 
-        return;
+        resolve();
       }
-      await channel.send({ embeds: [this.printBoard(game)], components: [] });
+      await this.channel.send({ embeds: [this.printBoard()], components: [] });
 
       const filter = (m) =>
-        m.author.id === game.players.at((game.turn + 1) % 2).id &&
+        m.author.id === this.players.at((this.turn + 1) % 2).id &&
         parseInt(m.content) >= 1 &&
-        parseInt(m.content) <= game.width &&
-        game.board[0][parseInt(m.content) - 1] == -1;
+        parseInt(m.content) <= this.currentOptions.width &&
+        this.board[0][parseInt(m.content) - 1] == -1;
 
-      const collected = await channel
+      const collected = await this.channel
         .awaitMessages({ filter, max: 1, time: 60_000, errors: ["time"] })
         .catch((err) => {
           channel.send("You ran out of time!");
@@ -83,108 +109,85 @@ class Connect4Game extends Game {
 
       let move = parseInt(collected.first().content) - 1;
 
-      for (i = game.height - 1; i >= 0; i--) {
-        if (game.board[i][move] == -1) {
-          game.board[i][move] = game.players.at((game.turn + 1) % 2);
+      for (var i = this.currentOptions.height - 1; i >= 0; i--) {
+        if (this.board[i][move] == -1) {
+          this.board[i][move] = this.players.at((this.turn + 1) % 2);
           break;
         }
       }
 
-      if (this.checkWin(game) != -1) {
-        const victoryEmbed = new EmbedBuilder()
-          .setTitle("We have a winner!")
-          .setDescription(`All hail ${this.checkWin(game)}`)
-          .setColor("Green");
-        await channel.send({ embeds: [victoryEmbed] });
-
-        return;
+      if (this.checkWin() != -1) {
+        this.winner = this.checkWin();
+        resolve();
       }
 
-      game.turn++;
-    }
+      this.turn++;
+    }})
   }
-  emptyBoard(height, width) {
-    let board = Array(height);
-    for (var i = 0; i < height; i++) {
-      board[i] = Array(width);
-      for (var j = 0; j < width; j++) {
+  setEmptyBoard() {
+    let board = Array(this.currentOptions.height);
+    for (var i = 0; i < this.currentOptions.height; i++) {
+      board[i] = Array(this.currentOptions.width);
+      for (var j = 0; j < this.currentOptions.width; j++) {
         board[i][j] = -1;
       }
     }
 
-    return board;
+    this.board = board;
+  }
+  setEmojis() {
+    for (var i = 0; i < this.players.size; i++) {
+      this.players.at(i).emoji = this.defaultEmojis[i];
+    }
   }
 
-  /**
-   * Creates a new game with the specified options and players.
-   *
-   * @param {Object} options - The game options.
-   * @param {number} options.height - The height of the game board.
-   * @param {number} options.width - The width of the game board.
-   * @param {number} options.winLength - The number of consecutive pieces needed to win.
-   * @param {Array} players - An array of player objects.
-   * @returns {Object} - The newly created game object.
-   */
-  createGame(options, players) {
-    let game = {
-      height: options["height"],
-      width: options["width"],
-      players: players,
-      turn: 1,
-      winLength: options["winLength"],
-      board: this.emptyBoard(options["height"], options["width"]),
-    };
-
-    return game;
-  }
-
-  printBoard(game) {
+  printBoard() {
     let boardText = "";
-    for (var i = 0; i < game.height; i++) {
-      for (var j = 0; j < game.width; j++) {
+    for (var i = 0; i < this.currentOptions.height; i++) {
+      for (var j = 0; j < this.currentOptions.width; j++) {
         boardText +=
-          game.board[i][j] == -1 ? ":white_circle:" : game.board[i][j].emoji;
+          this.board[i][j] == -1 ? ":white_circle:" : this.board[i][j].emoji;
       }
       boardText += "\n";
     }
     boardText += `\n\n  ${
-      game.players.at((game.turn + 1) % 2).emoji
-    } - ${game.players.at((game.turn + 1) % 2)}'s turn. (Type 1-7)`;
+      this.players.at((this.turn + 1) % 2).emoji
+    } - ${this.players.at((this.turn + 1) % 2)}'s turn. (Type 1-7)`;
     return new EmbedBuilder().setDescription(boardText);
   }
 
-  checkWin(game) {
+  checkWin() {
     //check rows:
-    if (this.checkDirection(game, 1, 0) != -1)
-      return this.checkDirection(game, 1, 0);
+    if (this.checkDirection(1, 0) != -1)
+      return this.checkDirection(1, 0);
 
     //check columns:
-    if (this.checkDirection(game, 0, 1) != -1)
-      return this.checkDirection(game, 0, 1);
+    if (this.checkDirection(0, 1) != -1)
+      return this.checkDirection(0, 1);
 
     //top-left bottom right diagonals
-    if (this.checkDirection(game, 1, 1) != -1)
-      return this.checkDirection(game, 1, 1);
+    if (this.checkDirection(1, 1) != -1)
+      return this.checkDirection(1, 1);
 
     //bottom-left top right diagonals
-    if (this.checkDirection(game, 1, -1) != -1)
-      return this.checkDirection(game, 1, -1);
+    if (this.checkDirection(1, -1) != -1)
+      return this.checkDirection(1, -1);
 
     return -1;
   }
 
-  checkDirection(game, dX, dY) {
-    let b = game.board;
-    let wL = game.winLength;
-    let h = game.height;
-    let w = game.width;
+  checkDirection(dX, dY) {
+    let b = this.board;
+    let wL = this.currentOptions.winLength;
+    let h = this.currentOptions.height;
+    let w = this.currentOptions.width;
 
     //make dX and dY work for any value (if I wanted to expand c4)
     //area = 1 + (winLength - 1) * d
     //example: winLength = 3, delta = 2 (there is a gap)
     //OOOXOXOX, area to check is 5 (1 + (3 - 1) * 2)
-    dXA = 1 + (wL - 1) * Math.abs(dX);
-    dYA = 1 + (wL - 1) * Math.abs(dY);
+    let dXA = 1 + (wL - 1) * Math.abs(dX);
+    let dYA = 1 + (wL - 1) * Math.abs(dY);
 
     // () = inclusive, [] = exclusive
 
@@ -211,3 +214,5 @@ class Connect4Game extends Game {
     return -1;
   }
 }
+
+module.exports = Connect4Game;
