@@ -5,6 +5,12 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Node.js - Debug Current File",
+            "type": "node",
+            "request": "launch",
+            "program": "${file}"
+        },
+        {
             "name": "Debug Server (nodemon)",
             "program": "${workspaceFolder}/index.js",
             "request": "launch",
@@ -16,8 +22,7 @@
             "console": "integratedTerminal",
             "restart": true,
             "runtimeArgs": [
-                
-                "test" // Replace "yourArgument" with the actual argument you want to pass
+                //"test"
             ]
         },
         {
@@ -34,7 +39,7 @@
             ],
             "envFile": "${workspaceRoot}/.env"
         },
-            {
+        {
             "type": "node",
             "request": "launch",
             "name": "Jest All",

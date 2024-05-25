@@ -1,9 +1,13 @@
 {
   "dependencies": {
+    "class-transformer": "^0.5.1",
     "discord.js": "^14.15.2",
+    "discord.js-mock-interactions": "^0.1.9",
     "dotenv": "^16.4.5",
     "minimist": "^1.2.8",
-    "mongodb": "^6.6.1"
+    "mongodb": "^6.6.1",
+    "randomized-string": "^2.0.1",
+    "reflect-metadata": "^0.2.2"
   },
   "devDependencies": {
     "jest": "^29.7.0"
