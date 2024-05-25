@@ -1,6 +1,6 @@
 // pingCommand.test.js
 
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, Client, InteractionResponse } = require('discord.js');
 
 // Mocking the interaction object
 const mockInteraction = {
@@ -11,6 +11,29 @@ const mockInteraction = {
 const command = require('./ping.js');
 
 describe('ping command', () => {
+  beforeEach(() => {
+    let mockClient = new Client({
+      intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.GuildMessageReactions,
+        GatewayIntentBits.DirectMessages,
+        GatewayIntentBits.DirectMessageReactions,
+      ],
+    });
+
+    mockInteraction = {
+      reply: jest.fn(),
+      channel: {
+        send: jest.fn(),
+        awaitMessages: jest.fn(),
+      },
+      user: {
+        id: "12345",
+      },
+    };
+  }),
   it('should reply with Pong!', async () => {
     // Execute the command
     await command.execute(mockInteraction);

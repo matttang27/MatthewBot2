@@ -7,7 +7,7 @@ const {
   PermissionsBitField,
   ComponentType,
   Collection,
-  MessageType,
+  MessageType
 } = require("discord.js");
 
 const {
@@ -18,7 +18,15 @@ const {
 
 const Game = require("../game");
 
+/**
+ * Represents a Connect 4 game.
+ * @extends Game
+ */
 class Connect4Game extends Game {
+  /**
+   * Creates a new Connect 4 game instance.
+   * @param {Object} interaction - The interaction object from Discord.js.
+   */
   constructor(interaction) {
     super(interaction);
 
@@ -73,6 +81,10 @@ class Connect4Game extends Game {
       this.turn = 1
       this.board;
   }
+  /**
+   * Starts the Connect 4 game.
+   * @returns {Promise<void>}
+   */
   async playGame() {
     return new Promise(async (resolve, reject) => {
 
@@ -82,7 +94,6 @@ class Connect4Game extends Game {
 
     while (true) {
       if (this.turn > this.currentOptions.height * this.currentOptions.width) {
-        console.log("draw");
 
         const drawEmbed = new EmbedBuilder()
           .setTitle("Game ended in draw!")
@@ -124,6 +135,9 @@ class Connect4Game extends Game {
       this.turn++;
     }})
   }
+  /**
+   * Initializes an empty game board.
+   */
   setEmptyBoard() {
     let board = Array(this.currentOptions.height);
     for (var i = 0; i < this.currentOptions.height; i++) {
@@ -135,12 +149,19 @@ class Connect4Game extends Game {
 
     this.board = board;
   }
+  /**
+   * Assigns emojis to players.
+   */
   setEmojis() {
     for (var i = 0; i < this.players.size; i++) {
       this.players.at(i).emoji = this.defaultEmojis[i];
     }
   }
 
+  /**
+   * Generates a visual representation of the game board.
+   * @returns {EmbedBuilder} The embed representing the game board.
+   */
   printBoard() {
     let boardText = "";
     for (var i = 0; i < this.currentOptions.height; i++) {
@@ -156,6 +177,10 @@ class Connect4Game extends Game {
     return new EmbedBuilder().setDescription(boardText);
   }
 
+  /**
+   * Checks if there is a winning condition on the board.
+   * @returns {number|Object} The winning player or -1 if no winner.
+   */
   checkWin() {
     //check rows:
     if (this.checkDirection(1, 0) != -1)
@@ -176,6 +201,12 @@ class Connect4Game extends Game {
     return -1;
   }
 
+  /**
+   * Checks a specific direction for a winning sequence.
+   * @param {number} dX - The change in X direction.
+   * @param {number} dY - The change in Y direction.
+   * @returns {number|Object} The winning player or -1 if no winner.
+   */
   checkDirection(dX, dY) {
     let b = this.board;
     let wL = this.currentOptions.winLength;

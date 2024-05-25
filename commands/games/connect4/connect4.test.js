@@ -1,4 +1,4 @@
-const c4 = require('./connect4.js');
+const Connect4Game = require('./connect4game.js');
 
 describe('updateLobby function', () => {
     test('empty lobby', () => {
