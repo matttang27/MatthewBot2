@@ -38,8 +38,9 @@ module.exports = {
       userIds: [process.env.USER_ID, process.env.USER_ID_2],
     })
 
-    let reply = await testClient.sendCommand(testClient.members[0],"ping");
+    let reply = await testClient.sendCommand(testClient.members[0],"mocktest");
 
+    console.log("command sent!")
     console.log(reply);
   },
 };

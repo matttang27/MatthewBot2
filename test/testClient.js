@@ -1,5 +1,5 @@
 
-const {Collection, CommandInteraction,InteractionType , ApplicationCommandType,  GuildMember, ...Discord} = require("discord.js");
+const {Collection, CommandInteraction,InteractionType , ApplicationCommandType,  GuildMember, TextChannel, Client, Message} = require("discord.js");
 const {Generator} = require('snowflake-generator');
 const randomString = require('randomized-string');
 //stores frequently used variables
@@ -18,7 +18,7 @@ class TestClient {
 
   /**
    *
-   * @param {Discord.Client} client
+   * @param {Client} client
    */
 
   constructor(client, messageFunctions) {
@@ -95,6 +95,7 @@ class TestClient {
     const replyPromise = new Promise((resolve) => {
       const originalReply = interaction.reply.bind(interaction);
       interaction.reply = (...args) => {
+        console.log("new interaction reply");
         resolve(args);
         return originalReply(...args);
       };
@@ -105,6 +106,17 @@ class TestClient {
     // Wait for interaction.reply to be called and return the parameters used
     return replyPromise;
 
+  }
+
+  /**
+   * 
+   * @param {GuildMember} member 
+   * @param {TextChannel} channel 
+   * @param {string} content 
+   */
+
+  async sendMessage(member, channel, content) {
+    const message = new Message()
   }
 }
 
