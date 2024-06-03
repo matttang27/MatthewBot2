@@ -1,5 +1,5 @@
 
-const {Collection, CommandInteraction,InteractionType , ApplicationCommandType,  GuildMember, TextChannel, Client, Message} = require("discord.js");
+const {Collection, CommandInteraction,InteractionType , ApplicationCommandType,  GuildMember, TextChannel, Client, Message, MessageType, CommandInteractionOptionResolver, InteractionResponse} = require("discord.js");
 const {Generator} = require('snowflake-generator');
 const randomString = require('randomized-string');
 //stores frequently used variables
@@ -38,6 +38,7 @@ class TestClient {
   */
   createDefaults(ids) {
     return new Promise(async (resolve, reject) => {
+      this.applicationId = ids.applicationId;
       this.guild = await this.client.guilds.fetch(ids.guildId);
       this.channel = await this.guild.channels.fetch(ids.channelId);
 
@@ -67,16 +68,16 @@ class TestClient {
    * @returns {Promise<any>} the created interaction 
    */
   
-  async sendCommand(member, commandName) {
+  async sendCommand(member, commandName, options) {
 
-    const snowflakeGenerator = new Generator(Date.now()); 
+    const snowflakeGenerator = new Generator(1420070400000); 
 
     const interaction = new CommandInteraction(this.client, {
       type: InteractionType.ApplicationCommand,
       id: snowflakeGenerator.generate().toString(),
-      applicationId: this.applicationId,
-      channelId: this.channel.id,
-      guildId: this.guild.id,
+      application_id: this.applicationId,
+      channel: this.channel,
+      guild_id: this.guild.id,
       user: member.user,
       member: member,
       version: 1,
@@ -84,13 +85,24 @@ class TestClient {
       token: randomString.generate(50),
       entitlements: new Collection(),
       data: {
-        id: "1234",
+        id: "1242987881392242798",
         name: commandName,
-        type: ApplicationCommandType.ChatInput
+        type: ApplicationCommandType.ChatInput,
+        guild_id: this.guild.id
       }
     })
 
+    //interaction.options = new CommandInteractionOptionResolver(this.client, options)
     interaction.reply = this.messageFunctions.reply;
+    interaction.deferReply = () => {
+      console.log("New deferReply");
+      let response = new InteractionResponse(interaction);
+      response.edit = (m) => {
+        console.log(`Edit: ${m}`);
+      }
+      return response
+    }
+
 
     const replyPromise = new Promise((resolve) => {
       const originalReply = interaction.reply.bind(interaction);
@@ -116,7 +128,20 @@ class TestClient {
    */
 
   async sendMessage(member, channel, content) {
-    const message = new Message()
+    const snowflakeGenerator = new Generator(Date.now());
+
+    const message = new Message(this.client, {
+      channel_id: channel.id,
+      channel: channel,
+      id: snowflakeGenerator.generate().toString(),
+      type: MessageType.Default,
+      content: content,
+      author: member.user,
+
+    })
+
+    this.client.emit('messageCreate', message);
+
   }
 }
 
