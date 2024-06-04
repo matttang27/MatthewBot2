@@ -10,12 +10,12 @@ module.exports = {
   async execute(client) {
 
     console.log(`Ready! Logged in as ${client.user.tag}`);
-    
-
-    let TESTING = true;
-    if (TESTING) {
+    /*
+    if (client.testing) {
       const testClient = new TestClient(client, {
-        reply: (i) => (console.log(i))
+        reply: (i) => (console.log("line16 reply" + i)),
+        deferReply: () => (console.log("defered")),
+        edit: (i) => (console.log("line18 edit" + i))
       });
   
       await testClient.createDefaults({
@@ -25,14 +25,13 @@ module.exports = {
         userIds: [process.env.USER_ID, process.env.USER_ID_2],
       })
   
-      let reply = await testClient.sendCommand(testClient.members[0],"ping",[]);
+      let response = await testClient.sendCommand(testClient.members[0],"ping",[]);
   
       
-      console.log("command sent!")
-      console.log(reply);
+      
   
       //testClient.sendMessage(testClient.members[0],testClient.channel,"send message test")
-    }
+    }*/
     
     
   },

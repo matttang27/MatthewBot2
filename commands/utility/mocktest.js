@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, ButtonBuilder, ActionRowBuilder, ButtonStyle, ComponentType, } = require("discord.js");
+const { SlashCommandBuilder, ButtonBuilder, ActionRowBuilder, ButtonStyle, ComponentType, CommandInteraction, } = require("discord.js");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -10,7 +10,14 @@ module.exports = {
     .addMentionableOption((option) =>
       option.setName('mentiontest').setDescription("Mention test")
     ),
+
+  /**
+   * 
+   * @param {CommandInteraction} interaction 
+   */
   async execute(interaction) {
+
+    console.log(interaction.options)
 
     let response = await interaction.deferReply()
     let commandInteraction = interaction;

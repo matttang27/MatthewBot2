@@ -1,44 +1,44 @@
-// pingCommand.test.js
+const MatthewClient = require('../../matthewClient');
+const TestClient = require('../../test/testClient');
+const config = require('../../config.json');
+const matthewClient = new MatthewClient(config, true);
+const client = matthewClient.client;
 
-const { SlashCommandBuilder, Client, InteractionResponse } = require('discord.js');
+let testClient;
 
-// Mocking the interaction object
-const mockInteraction = {
-  reply: jest.fn(),
-};
+beforeAll(async () => {
+  matthewClient.login()
+  await new Promise((resolve, reject) => {
+    client.once("error", reject);
+    client.once("ready", () => {
+      client.off("error", reject);
+      resolve();
+    });
+  });
 
-// Import the command module
-const command = require('./ping.js');
+  testClient = new TestClient(client, {
+    edit: jest.fn(),
+    deferReply: jest.fn(),
+    reply: jest.fn(),
+  })
+
+  await testClient.createDefaults({
+    applicationId: process.env.APPLICATION_ID,
+    guildId: process.env.GUILD_ID,
+    channelId: process.env.CHANNEL_ID,
+    userIds: [process.env.USER_ID, process.env.USER_ID_2],
+  })
+})
 
 describe('ping command', () => {
-  beforeEach(() => {
-    let mockClient = new Client({
-      intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.GuildMessageReactions,
-        GatewayIntentBits.DirectMessages,
-        GatewayIntentBits.DirectMessageReactions,
-      ],
-    });
-
-    mockInteraction = {
-      reply: jest.fn(),
-      channel: {
-        send: jest.fn(),
-        awaitMessages: jest.fn(),
-      },
-      user: {
-        id: "12345",
-      },
-    };
-  }),
   it('should reply with Pong!', async () => {
     // Execute the command
-    await command.execute(mockInteraction);
+    testClient.sendCommand(testClient.members[0],"ping",[]);
 
     // Check if reply was called with 'Pong!'
-    expect(mockInteraction.reply).toHaveBeenCalledWith('Pong!');
-  });
+    await new Promise((r) => setTimeout(r, 2000));
+    expect(testClient.messageFunctions.edit).toHaveBeenCalled();
+    expect(testClient.messageFunctions.deferReply).toHaveBeenCalledWith("defered");
+    
+  }, 15_000);
 });
