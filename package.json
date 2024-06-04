@@ -5,6 +5,8 @@
     "discord.js-mock-interactions": "^0.1.9",
     "dotenv": "^16.4.5",
     "minimist": "^1.2.8",
+    "module-alias": "^2.2.3",
+    "module-alias-jest": "^0.0.3",
     "mongodb": "^6.6.1",
     "randomized-string": "^2.0.1",
     "reflect-metadata": "^0.2.2"
@@ -14,5 +16,8 @@
   },
   "scripts": {
     "test": "jest --watch --no-cache"
+  },
+  "_aliases": {
+    "@root": "."
   }
 }

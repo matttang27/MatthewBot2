@@ -2,9 +2,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { Client, Collection, Events, GatewayIntentBits } = require('discord.js');
 
-class MatthewClient {
+class MatthewClient extends Client {
     constructor(config, testing) {
-        this.client = new Client({ 
+        super({
             intents: [
                 GatewayIntentBits.Guilds, 
                 GatewayIntentBits.MessageContent, 
@@ -12,21 +12,21 @@ class MatthewClient {
                 GatewayIntentBits.GuildMessageReactions, 
                 GatewayIntentBits.DirectMessages, 
                 GatewayIntentBits.DirectMessageReactions
-            ] 
+            ]
         });
-        this.client.commands = new Collection();
-        this.client.testing = testing;
-        this.config = config;
 
+        this.commands = new Collection();
+        this.testing = testing;
+        this.config = config;
 
         this.setupCommands();
         this.setupEvents();
 
-        this.client.on("error", (e) => console.error(e));
-        this.client.on("warn", (e) => console.warn(e));
+        this.on("error", (e) => console.error(e));
+        this.on("warn", (e) => console.warn(e));
 
         if (!testing) {
-            this.client.on("debug", (e) => console.info(e));
+            this.on("debug", (e) => console.info(e));
         }
         
         process.on('unhandledRejection', error => {
@@ -45,7 +45,7 @@ class MatthewClient {
                 const filePath = path.join(commandsPath, file);
                 const command = require(filePath);
                 if ('data' in command && 'execute' in command) {
-                    this.client.commands.set(command.data.name, command);
+                    this.commands.set(command.data.name, command);
                 } else {
                     console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
                 }
@@ -61,15 +61,15 @@ class MatthewClient {
             const filePath = path.join(eventsPath, file);
             const event = require(filePath);
             if (event.once) {
-                this.client.once(event.name, (...args) => event.execute(...args));
+                this.once(event.name, (...args) => event.execute(...args));
             } else {
-                this.client.on(event.name, (...args) => event.execute(...args));
+                this.on(event.name, (...args) => event.execute(...args));
             }
         }
     }
 
     login() {
-        this.client.login(this.config.token);
+        return super.login(this.config.token);
     }
 }
 

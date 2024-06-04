@@ -1,33 +1,9 @@
-const MatthewClient = require('../../matthewClient');
-const TestClient = require('../../test/testClient');
-const config = require('../../config.json');
-const matthewClient = new MatthewClient(config, true);
-const client = matthewClient.client;
-
+const setupTestEnvironment = require('../../test/jestSetup')
+let client;
 let testClient;
 
 beforeAll(async () => {
-  matthewClient.login()
-  await new Promise((resolve, reject) => {
-    client.once("error", reject);
-    client.once("ready", () => {
-      client.off("error", reject);
-      resolve();
-    });
-  });
-
-  testClient = new TestClient(client, {
-    edit: jest.fn(),
-    deferReply: jest.fn(),
-    reply: jest.fn(),
-  })
-
-  await testClient.createDefaults({
-    applicationId: process.env.APPLICATION_ID,
-    guildId: process.env.GUILD_ID,
-    channelId: process.env.CHANNEL_ID,
-    userIds: [process.env.USER_ID, process.env.USER_ID_2],
-  })
+  [client, testClient] = await setupTestEnvironment();
 })
 
 describe('ping command', () => {
@@ -37,8 +13,8 @@ describe('ping command', () => {
 
     // Check if reply was called with 'Pong!'
     await new Promise((r) => setTimeout(r, 2000));
-    expect(testClient.messageFunctions.edit).toHaveBeenCalled();
-    expect(testClient.messageFunctions.deferReply).toHaveBeenCalledWith("defered");
+    expect(testClient.messageFunctions.edit).toHaveBeenCalledWith("Pong!");
+    expect(testClient.messageFunctions.deferReply).toHaveBeenCalled();
     
   }, 15_000);
 });
