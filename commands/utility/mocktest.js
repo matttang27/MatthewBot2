@@ -29,7 +29,7 @@ module.exports = {
         .setLabel("Test")
         .setStyle(ButtonStyle.Primary);
 
-        const row = new ActionRowBuilder().addComponents(test);
+    const row = new ActionRowBuilder().addComponents(test);
 
     await interaction.editReply({
         components: [row],

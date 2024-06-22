@@ -9,5 +9,7 @@ module.exports = {
 
 
        console.log(message.author, message.content)
+
+       
     }
 }

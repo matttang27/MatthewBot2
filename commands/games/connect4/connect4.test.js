@@ -1,6 +1,8 @@
+require('module-alias-jest/register')
 const Connect4Game = require('./connect4game.js');
 
-describe('updateLobby function', () => {
+describe('Connect4 Base Game', () => {
+    describe('')
     test('empty lobby', () => {
         const game = c4.createGame({height:6, width:7, winLength: 4},["p1","p2"])
         const mockEmbed = {

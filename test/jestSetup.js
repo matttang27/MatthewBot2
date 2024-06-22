@@ -1,8 +1,15 @@
-const MatthewClient = require("../matthewClient");
-const TestClient = require("../test/testClient");
-const config = require("../config.json");
+const MatthewClient = require("@client");
+const TestClient = require("@testClient");
+const config = require("@config");
 
-async function setupTestEnvironment() {
+/**
+ * @param {Object} messageFunctions - An object containing message-related functions.
+ * @param {Function} messageFunctions.edit - Function to edit a message.
+ * @param {Function} messageFunctions.deferReply - Function to defer a reply to a message.
+ * @param {Function} messageFunctions.reply - Function to send a reply to a message.
+ * @returns {Promise<[MatthewClient, TestClient]>}
+ */
+async function setupTestEnvironment(messageFunctions) {
   const client = new MatthewClient(config, true);
 
   client.login();
@@ -14,11 +21,7 @@ async function setupTestEnvironment() {
     });
   });
 
-  let testClient = new TestClient(client, {
-    edit: jest.fn(),
-    deferReply: jest.fn(),
-    reply: jest.fn(),
-  });
+  let testClient = new TestClient(client, messageFunctions);
 
   await testClient.createDefaults({
     applicationId: process.env.APPLICATION_ID,
@@ -27,7 +30,7 @@ async function setupTestEnvironment() {
     userIds: [process.env.USER_ID, process.env.USER_ID_2],
   });
 
-  return [client, testClient]
+  return [client, testClient];
 }
 
 module.exports = setupTestEnvironment;

@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".", // Base directory to resolve non-relative module names
+    "paths": {
+      "@root/*": [
+        "./*"
+      ],
+      "@client": [
+        "./matthewClient.js"
+      ],
+      "@testClient": [
+        "./test/testClient.js"
+      ],
+      "@config": [
+        "./config.json"
+      ]
+    }
+  },
+  "typeAcquisition": {
+    "include": [
+      "jest"
+    ]
+  },
+  "include": [
+    "./**/*.js"
+  ]
+}

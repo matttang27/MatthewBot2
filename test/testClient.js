@@ -30,10 +30,12 @@ class TestClient {
   /**
    *
    * @param {Client} client - The original client.
-   * @param {Object} messageFunctions - An object containing message-related functions.
-   * @param {Function} messageFunctions.edit - Function to edit a message.
-   * @param {Function} messageFunctions.deferReply - Function to defer a reply to a message.
-   * @param {Function} messageFunctions.reply - Function to send a reply to a message.
+   * @param {Object} messageFunctions - An object containing the functions you would like to replace the
+   * original interaction functions with
+   * @param {Function} messageFunctions.edit - Function called on response.edit
+   * @param {Function} messageFunctions.deferReply - Function called on interaction.deferReply()
+   * @param {Function} messageFunctions.reply - Function called on interaction.reply()
+   * @param {Function} messageFunctions.editReply - Function called on interaction.editReply()
    */
 
   constructor(client, messageFunctions) {
@@ -74,15 +76,36 @@ class TestClient {
     });
   }
 
+  
+
   /**
-   *
-   * @param {GuildMember} member
-   * @param {string} commandName
-   * @returns {Promise<any>} the created interaction
+   * Creates a response function.
+   * @param {Object} interaction - The interaction object.
+   * @param {Function} messageFunction - The function to call (e.g., this.messageFunctions.reply).
+   * @param {string} [message] - The message to console.log
+   * @returns {InteractionResponse} The created response
    */
 
-  async sendCommand(member, commandName, options) {
-    const snowflakeGenerator = new Generator(1420070400000);
+  createResponseFunction(newFunction, interaction, message) {
+    return (...args) => {
+      console.log(message, ...args)
+      newFunction(...args);
+      let response = new InteractionResponse(interaction);
+      response.edit = this.messageFunctions.edit;
+      return response;
+    }
+  }
+  
+  /**
+   * 
+   * @param {GuildMember} member
+   * @param {string} commandName
+   * @param {Object} options
+   * @returns {CommandInteraction} the created interaction
+   */
+  createCommandInteraction(member, commandName, options) {
+
+    const snowflakeGenerator = new Generator(Date.now());
 
     const interaction = new CommandInteraction(this.client, {
       type: InteractionType.ApplicationCommand,
@@ -105,24 +128,53 @@ class TestClient {
     });
 
     //interaction.options = new CommandInteractionOptionResolver(this.client, options)
-    interaction.reply = (m) => {
-      console.log(`Reply detected: ${m}`)
-      this.messageFunctions.reply(m);
-      let response = new InteractionResponse(interaction);
-      response.edit = this.messageFunctions.edit;
-      return response;
-    };
-    interaction.deferReply = () => {
-      console.log(`Reply defered`);
-      this.messageFunctions.deferReply("defered");
-      let response = new InteractionResponse(interaction);
-      response.edit = (m) => {
-        console.log(`Edited message: ${m}`);
-        this.messageFunctions.edit(m);
-        console.log("Checker");
-      }
-      return response;
-    };
+    interaction.reply = this.createResponseFunction(this.messageFunctions.reply, interaction, 'Replied: ');
+    interaction.deferReply = this.createResponseFunction(this.messageFunctions.deferReply, interaction, 'Reply deferred');
+    interaction.editReply = this.createResponseFunction(this.messageFunctions.editReply, interaction, 'Reply edited');
+
+    return interaction
+  }
+
+  /**
+   *
+   * @param {GuildMember} member
+   * @param {string} commandName
+   * @param {Object} options
+   * @returns {CommandInteraction, Promise<any>} the created interaction
+   */
+
+  sendCommand(member, commandName, options) {
+    
+
+    let interaction = this.createCommandInteraction(member, commandName, options);
+
+    this.client.emit("interactionCreate", interaction);
+
+    return interaction
+  }
+
+  testingMessageSend(member, commandName, options) {
+    const snowflakeGenerator = new Generator(Date.now());
+
+    const interaction = new CommandInteraction(this.client, {
+      type: InteractionType.ApplicationCommand,
+      id: snowflakeGenerator.generate().toString(),
+      application_id: this.applicationId,
+      channel: this.channel,
+      guild_id: this.guild.id,
+      user: member.user,
+      member: member,
+      version: 1,
+      locale: "en-GB",
+      token: randomString.generate(50),
+      entitlements: new Collection(),
+      data: {
+        id: "1242987881392242798",
+        name: commandName,
+        type: ApplicationCommandType.ChatInput,
+        guild_id: this.guild.id,
+      },
+    });
 
     this.client.emit("interactionCreate", interaction);
 
@@ -149,6 +201,24 @@ class TestClient {
     });
 
     this.client.emit("messageCreate", message);
+  }
+
+  /**
+   *
+   * @param {GuildMember} member
+   * @param {TextChannel} channel
+   * @param {string} content
+   */
+  async waitForResponse(channel, content) {
+    await new Promise((resolve, reject) => {
+      client.once("error", reject);
+      client.once("messageCreate", (m) => {
+
+        if (m.author.id == this.client.id) {}
+        client.off("error", reject);
+        resolve();
+      });
+    });
   }
 }
 

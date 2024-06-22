@@ -14,9 +14,9 @@ const {
   errorEmbed,
   successEmbed,
   returnEmotes,
-} = require("../../../functions");
+} = require("@root/functions.js");
 
-const Game = require("../game");
+const Game = require("@root/commands/games/game.js");
 
 /**
  * Represents a Connect 4 game.

@@ -14,7 +14,7 @@ const {
   errorEmbed,
   successEmbed,
   returnEmotes,
-} = require("../../functions");
+} = require("@root/functions");
 
 class Game {
   constructor(interaction) {

@@ -18,6 +18,9 @@
     "test": "jest --watch --no-cache"
   },
   "_aliases": {
-    "@root": "."
+    "@root": ".",
+    "@client": "./matthewClient.js",
+    "@testClient": "./test/testClient.js",
+    "@config": "./config.json"
   }
 }
