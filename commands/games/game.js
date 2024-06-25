@@ -70,16 +70,19 @@ class Game {
         .setColor("Red")
         .setTitle(`${this.properties.gameName} game cancelled`);
 
-      if (err == "cancelled") {
-        cancelledEmbed.setDescription("Blame the leader");
-      } else if (err == "empty") {
-        cancelledEmbed.setDescription("Everyone left? Y'all scared?");
-      } else if (err == "not enough") {
-        cancelledEmbed.setDescription("Not enough players! Fake friends fr");
+      const errMessages = {
+        "cancelled": "Blame the leader",
+        "empty": "Everyone left? Y'all scared?",
+        "not enough": "Not enough players! Fake friends fr",
+      }
+
+      if (err in errMessages) {
+        cancelledEmbed.setDescription(errMessages[err])
       } else {
         console.log(err);
-        return;
+        return
       }
+
       await this.response.edit({ embeds: [cancelledEmbed], components: [] });
     }
   }
@@ -155,9 +158,10 @@ class Game {
               await i.reply(errorEmbed("Not enough players to start."));
             } else {
               await i.deferUpdate();
+              collector.stop();
             }
 
-            collector.stop();
+            
           } else {
             await i.reply(errorEmbed("You are not the owner of this lobby!"));
           }

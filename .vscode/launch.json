@@ -12,6 +12,7 @@
         },
         {
             "name": "Debug Server (nodemon)",
+            "preLaunchTask": "npm install",
             "program": "${workspaceFolder}/index.js",
             "request": "launch",
             "skipFiles": [
