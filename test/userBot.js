@@ -150,6 +150,8 @@ class UserBot {
       return Array.from(buttons.children).find(button => button.textContent == buttonName);
     }, messageId, buttonName);
 
+    await new Promise(r => setTimeout(r, 2000));
+
     await button.click()
 
   }
