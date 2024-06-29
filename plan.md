@@ -9,7 +9,8 @@
 TODO:
 
 - Create jest tests for all current code
-    - test game.test.js using TestClient
+    - figure out how to detect ephemeral responses (I don't think they appear in cache)
+    - create an extensive connect4.test.js
 - Complete Connect4game
     - Timer in footer
     - Lose on timeout

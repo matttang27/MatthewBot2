@@ -1,50 +1,51 @@
-const setupTestEnvironment = require('@root/test/jestSetup')
+require('module-alias-jest/register')
 const MatthewClient = require('@client');
-const TestClient = require('@testClient');
+const config = require('@config');
+const client = new MatthewClient(config,true);
 
-/** @type {MatthewClient} */
-let client;
-/** @type {TestClient} */
-let testClient;
 
-let messageFunctions = {
-  edit: jest.fn(),
-  deferReply: jest.fn(),
-  reply: jest.fn(),
-  editReply: jest.fn()
-}
+const UserBot = require('@userBot');
 
 beforeAll(async () => {
-  [client, testClient] = await setupTestEnvironment(messageFunctions);
+    client.login();
+
+
+    await new Promise((resolve, reject) => {
+        client.once("error", reject);
+        client.once("ready", () => {
+            client.off("error", reject);
+            resolve();
+        });
+    });
+
+    client.testGuild = await client.guilds.fetch(config['guildId']);
+    bot1 = new UserBot();
+    await bot1.login("matttangclone5@gmail.com", "matthewtestingbot");
+    bot1.guildId = config['guildId']
+}, 100_000)
+
+beforeEach(async () => {
+    client.testChannel = await client.testGuild.channels.create({name: "testing-channel"});
+    bot1.channelId = client.testChannel.id;
 })
-afterEach(() => {
-  jest.clearAllMocks();
-});
+
+afterEach(async () => {
+    await client.testChannel.delete();
+})
+
+
 
 describe('ping command', () => {
   it('should reply with Pong!', async () => {
-    // Execute the command
-    /** @type {[CommandInteraction, Promise<any>]} */
-    let interaction = testClient.sendCommand(testClient.members[0],"ping",[]);
 
-    
-    while(messageFunctions.edit.mock.calls.length == 0) {
-      await new Promise(r => setTimeout(r, 100));
-    }
-    expect(messageFunctions.edit).toHaveBeenCalledWith("Pong!");
-    expect(messageFunctions.deferReply).toHaveBeenCalled();
+    await bot1.sendCommand("ping", "MatthewBot2");
+
+    await new Promise(r => setTimeout(r, 10000));
+
+    let messages = await client.testChannel.messages.fetch({limit: 1});
+    expect(messages.at(0).content).toBe("Pong!")
+
+
     
   }, 1000_000);
-  it('should reply with Pong! #2', async () => {
-    //this is a test to see if the jest.clearAllMocks() works.
-    
-    // Execute the command
-    testClient.sendCommand(testClient.members[0],"ping",[]);
-
-    // Check if reply was called with 'Pong!'
-    await new Promise((r) => setTimeout(r, 2000));
-    expect(testClient.messageFunctions.edit).toHaveBeenCalledWith("Pong!");
-    expect(testClient.messageFunctions.deferReply).toHaveBeenCalled();
-    
-  }, 15_000);
 });
