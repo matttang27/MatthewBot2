@@ -36,9 +36,10 @@ module.exports = {
         });
     
     await response.awaitMessageComponent({filter: (i) => true, componentType: ComponentType.Button, time: 120_000})
-    .then(interaction => {
+    .then(async interaction => {
         buttonInteraction = interaction
-        interaction.deferReply();
+        await interaction.deferUpdate();
+        await interaction.deleteReply();
     });
 
     await interaction.channel.send({content: "type pls"})
@@ -46,9 +47,10 @@ module.exports = {
     await interaction.channel.awaitMessages({filter: (r) => true, max: 1, time: 120_000})
     .then((collected) => {
         chatInteraction = collected.first();
+        interaction.channel.send(chatInteraction.content);
     })
 
-    console.log("done")
+    
 
 
     

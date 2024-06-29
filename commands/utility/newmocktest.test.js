@@ -35,16 +35,28 @@ afterEach(async () => {
 
 
 
-describe('ping command', () => {
-  it('should reply with Pong!', async () => {
+describe('mocktest command', () => {
+  it('command interaction, button, and message should work', async () => {
 
-    await bot1.sendCommand("ping", "MatthewBot2");
+    await bot1.sendCommand("mocktest", "MatthewBot2");
 
-    await new Promise(r => setTimeout(r, 10000));
+    await new Promise(r => setTimeout(r, 5000));
 
     let messages = await client.testChannel.messages.fetch({limit: 1});
-    expect(messages.at(0).content).toBe("Pong!")
+    expect(messages.at(0).author.id).toBe(client.user.id)
 
+    await bot1.clickButton("Test", messages.at(0).id);
+    await new Promise(r => setTimeout(r, 5000));
+
+    messages = await client.testChannel.messages.fetch({limit: 1});
+    expect(messages.at(0).author.id).toBe(client.user.id)
+    expect(messages.at(0).content).toBe("type pls");
+
+    await bot1.sendMessage("Hello")
+    await new Promise(r => setTimeout(r, 5000));
+    messages = await client.testChannel.messages.fetch({limit: 1});
+    expect(messages.at(0).author.id).toBe(client.user.id)
+    expect(messages.at(0).content).toBe("Hello");
 
     
   }, 1000_000);
