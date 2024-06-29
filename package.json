@@ -8,6 +8,7 @@
     "module-alias": "^2.2.3",
     "module-alias-jest": "^0.0.3",
     "mongodb": "^6.6.1",
+    "puppeteer": "^22.12.1",
     "randomized-string": "^2.0.1",
     "reflect-metadata": "^0.2.2"
   },
@@ -21,6 +22,7 @@
     "@root": ".",
     "@client": "./matthewClient.js",
     "@testClient": "./test/testClient.js",
-    "@config": "./config.json"
+    "@config": "./config.json",
+    "@userBot": "./test/userBot.js"
   }
 }

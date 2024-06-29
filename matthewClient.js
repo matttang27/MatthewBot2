@@ -69,7 +69,9 @@ class MatthewClient extends Client {
     }
 
     login() {
-        return super.login(this.config.token);
+        super.login(this.config.token);
+
+        
     }
 }
 
