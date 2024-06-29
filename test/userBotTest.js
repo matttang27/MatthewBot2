@@ -17,17 +17,20 @@ const UserBot = require('@userBot');
     });
 
     client.testGuild = await client.guilds.fetch(config['guildId']);
+    client.testChannel = await client.testGuild.channels.fetch("720351714791915523");
 
-    /*
+    
     const bot1 = new UserBot();
+    bot1.guildId = client.testGuild.id;
+    bot1.channelId = client.testChannel.id;
     await bot1.login("matttangclone5@gmail.com", "matthewtestingbot");
+    await bot1.clickButton("Test","1256551501279526914");
 
-    await bot1.sendMessage("Testing","720351714791915520","720351714791915523")
 
-    await bot1.sendCommand("ping","MatthewBot2","720351714791915520","720351714791915523");*/
+    
 
-    client.testChannel = await client.testGuild.channels.fetch("1256505336106582086");
 
-    let messages = await client.testChannel.messages.fetch({limit: 5});
-    console.log(messages[2].content);
+
+    //let messages = await client.testChannel.messages.fetch({limit: 5});
+    //console.log(messages[2].content);
 })();

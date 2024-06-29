@@ -1,6 +1,9 @@
 const puppeteer = require("puppeteer");
 
 class UserBot {
+  guildId;
+  channelId;
+  
   constructor() {}
 
   async findAndClick(selector) {
@@ -97,7 +100,8 @@ class UserBot {
   }
 
   //sends a message
-  async sendMessage(content, guildId, channelId) {
+  async sendMessage(content, guildId=this.guildId, channelId=this.channelId) {
+    console.log(guildId, channelId);
     await this.page.goto(`https://discord.com/channels/${guildId}/${channelId}`);
 
     // Wait for the message input area to load
@@ -107,7 +111,8 @@ class UserBot {
     await this.page.keyboard.press("Enter");
   }
 
-  async sendCommand(commandName, botName, guildId, channelId) {
+  async sendCommand(commandName, botName, guildId=this.guildId, channelId=this.channelId) {
+    console.log(guildId, channelId);
     await this.page.goto(`https://discord.com/channels/${guildId}/${channelId}`);
 
     // Wait for the message input area to load
@@ -131,6 +136,21 @@ class UserBot {
     await this.page.keyboard.press("Enter");
     await new Promise((r) => setTimeout(r, 1000));
     await this.page.keyboard.press("Enter");
+
+  }
+
+  async clickButton(buttonName, messageId ,guildId=this.guildId, channelId=this.channelId) {
+    console.log(guildId, channelId);
+    await this.page.goto(`https://discord.com/channels/${guildId}/${channelId}`);
+    await this.page.waitForSelector(`[id="message-accessories-${messageId}"]`)
+
+    let button = await this.page.evaluateHandle((messageId,buttonName) => {
+      let buttons = document.getElementById(`message-accessories-${messageId}`).children[0].children[0].children[0];
+
+      return Array.from(buttons.children).find(button => button.textContent == buttonName);
+    }, messageId, buttonName);
+
+    await button.click()
 
   }
 }
