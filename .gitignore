@@ -1,5 +1,6 @@
 .env
 node_modules
-config.json
+config
+!config/example*
 test/mockInteraction.json
 test/mockInteraction2.json

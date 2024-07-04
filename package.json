@@ -22,7 +22,7 @@
     "@root": ".",
     "@client": "./matthewClient.js",
     "@testClient": "./test/testClient.js",
-    "@config": "./config.json",
+    "@config": "./config",
     "@userBot": "./test/userBot.js"
   }
 }

@@ -1,6 +1,6 @@
 require('module-alias-jest/register')
 const { REST, Routes } = require('discord.js');
-const { clientId, guildId, token } = require('./config.json');
+const { clientId, guildId, token } = require('@config/config.json');
 const fs = require('node:fs');
 const path = require('node:path');
 
