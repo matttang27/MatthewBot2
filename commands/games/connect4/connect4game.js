@@ -7,7 +7,7 @@ const {
   PermissionsBitField,
   ComponentType,
   Collection,
-  MessageType
+  MessageType,
 } = require("discord.js");
 
 const {
@@ -42,44 +42,44 @@ class Connect4Game extends Game {
       ":purple_circle:",
       ":green_circle:",
       ":orange_circle:",
-    ]
-      this.options = [
-        {
-          name: "height",
-          label: "Height",
-          desc: "Enter the height of the board (2 to 20)",
-          type: "num",
-          value: 6,
-          filter: (m) =>
-            !isNaN(m.content) &&
-            parseInt(m.content) >= 2 &&
-            parseInt(m.content) <= 20,
-        },
-        {
-          name: "width",
-          label: "Width",
-          desc: "Enter the width of the board (2 to 20)",
-          type: "num",
-          value: 7,
-          filter: (m) =>
-            !isNaN(m.content) &&
-            parseInt(m.content) >= 2 &&
-            parseInt(m.content) <= 20,
-        },
-        {
-          name: "winLength",
-          label: "Win Length",
-          desc: "Enter the amount of pieces in a row required to win (2 to 10)",
-          type: "num",
-          value: 4,
-          filter: (m) =>
-            !isNaN(m.content) &&
-            parseInt(m.content) >= 2 &&
-            parseInt(m.content) <= 10,
-        },
-      ]
-      this.turn = 1
-      this.board;
+    ];
+    this.options = [
+      {
+        name: "height",
+        label: "Height",
+        desc: "Enter the height of the board (2 to 20)",
+        type: "num",
+        value: 6,
+        filter: (m) =>
+          !isNaN(m.content) &&
+          parseInt(m.content) >= 2 &&
+          parseInt(m.content) <= 20,
+      },
+      {
+        name: "width",
+        label: "Width",
+        desc: "Enter the width of the board (2 to 20)",
+        type: "num",
+        value: 7,
+        filter: (m) =>
+          !isNaN(m.content) &&
+          parseInt(m.content) >= 2 &&
+          parseInt(m.content) <= 20,
+      },
+      {
+        name: "winLength",
+        label: "Win Length",
+        desc: "Enter the amount of pieces in a row required to win (2 to 10)",
+        type: "num",
+        value: 4,
+        filter: (m) =>
+          !isNaN(m.content) &&
+          parseInt(m.content) >= 2 &&
+          parseInt(m.content) <= 10,
+      },
+    ];
+    this.turn = 1;
+    this.board;
   }
   /**
    * Starts the Connect 4 game.
@@ -87,53 +87,57 @@ class Connect4Game extends Game {
    */
   async playGame() {
     return new Promise(async (resolve, reject) => {
+      this.setEmptyBoard();
+      this.setEmojis();
 
-    
-    this.setEmptyBoard();
-    this.setEmojis();
+      while (true) {
+        if (
+          this.turn >
+          this.currentOptions.height * this.currentOptions.width
+        ) {
+          const drawEmbed = new EmbedBuilder()
+            .setTitle("Game ended in draw!")
+            .setFooter({ text: "everyone's a loser" });
+          this.channel.send({
+            embeds: [drawEmbed],
+          });
 
-    while (true) {
-      if (this.turn > this.currentOptions.height * this.currentOptions.width) {
-
-        const drawEmbed = new EmbedBuilder()
-          .setTitle("Game ended in draw!")
-          .setFooter({ text: "everyone's a loser" });
-        this.channel.send({
-          embeds: [drawEmbed],
-        });
-
-        resolve();
-      }
-      await this.channel.send({ embeds: [this.printBoard()], components: [] });
-
-      const filter = (m) =>
-        m.author.id === this.players.at((this.turn + 1) % 2).id &&
-        parseInt(m.content) >= 1 &&
-        parseInt(m.content) <= this.currentOptions.width &&
-        this.board[0][parseInt(m.content) - 1] == -1;
-
-      const collected = await this.channel
-        .awaitMessages({ filter, max: 1, time: 60_000, errors: ["time"] })
-        .catch((err) => {
-          channel.send("You ran out of time!");
-        });
-
-      let move = parseInt(collected.first().content) - 1;
-
-      for (var i = this.currentOptions.height - 1; i >= 0; i--) {
-        if (this.board[i][move] == -1) {
-          this.board[i][move] = this.players.at((this.turn + 1) % 2);
-          break;
+          resolve();
         }
-      }
+        await this.channel.send({
+          embeds: [this.printBoard()],
+          components: [],
+        });
 
-      if (this.checkWin() != -1) {
-        this.winner = this.checkWin();
-        resolve();
-      }
+        const filter = (m) =>
+          m.author.id === this.players.at((this.turn + 1) % 2).id &&
+          parseInt(m.content) >= 1 &&
+          parseInt(m.content) <= this.currentOptions.width &&
+          this.board[0][parseInt(m.content) - 1] == -1;
 
-      this.turn++;
-    }})
+        const collected = await this.channel
+          .awaitMessages({ filter, max: 1, time: 60_000, errors: ["time"] })
+          .catch((err) => {
+            this.channel.send("You ran out of time!");
+          });
+
+        let move = parseInt(collected.first().content) - 1;
+
+        for (var i = this.currentOptions.height - 1; i >= 0; i--) {
+          if (this.board[i][move] == -1) {
+            this.board[i][move] = this.players.at((this.turn + 1) % 2).id;
+            break;
+          }
+        }
+
+        if (this.checkWin() != -1) {
+          this.winner = this.players.get(this.checkWin());
+          resolve();
+        }
+
+        this.turn++;
+      }
+    });
   }
   /**
    * Initializes an empty game board.
@@ -167,7 +171,8 @@ class Connect4Game extends Game {
     for (var i = 0; i < this.currentOptions.height; i++) {
       for (var j = 0; j < this.currentOptions.width; j++) {
         boardText +=
-          this.board[i][j] == -1 ? ":white_circle:" : this.board[i][j].emoji;
+          this.board[i][j] == -1 ? ":white_circle:" : this.players.get(this.board[i][j]).emoji;
+          
       }
       boardText += "\n";
     }
@@ -183,20 +188,16 @@ class Connect4Game extends Game {
    */
   checkWin() {
     //check rows:
-    if (this.checkDirection(1, 0) != -1)
-      return this.checkDirection(1, 0);
+    if (this.checkDirection(1, 0) != -1) return this.checkDirection(1, 0);
 
     //check columns:
-    if (this.checkDirection(0, 1) != -1)
-      return this.checkDirection(0, 1);
+    if (this.checkDirection(0, 1) != -1) return this.checkDirection(0, 1);
 
     //top-left bottom right diagonals
-    if (this.checkDirection(1, 1) != -1)
-      return this.checkDirection(1, 1);
+    if (this.checkDirection(1, 1) != -1) return this.checkDirection(1, 1);
 
     //bottom-left top right diagonals
-    if (this.checkDirection(1, -1) != -1)
-      return this.checkDirection(1, -1);
+    if (this.checkDirection(1, -1) != -1) return this.checkDirection(1, -1);
 
     return -1;
   }
