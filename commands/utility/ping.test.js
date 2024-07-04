@@ -1,6 +1,7 @@
 require('module-alias-jest/register')
 const MatthewClient = require('@client');
-const config = require('@config');
+const config = require('@config/config.json');
+const userBots = require('@config/userBots.json');
 const client = new MatthewClient(config,true);
 
 
@@ -20,7 +21,7 @@ beforeAll(async () => {
 
     client.testGuild = await client.guilds.fetch(config['guildId']);
     bot1 = new UserBot();
-    await bot1.login("matttangclone5@gmail.com", "matthewtestingbot");
+    await bot1.login(userBots["bots"][0]["username"], userBots["bots"][0]["password"]);
     bot1.guildId = config['guildId']
 }, 100_000)
 
@@ -40,10 +41,8 @@ describe('ping command', () => {
 
     await bot1.sendCommand("ping", "MatthewBot2");
 
-    await new Promise(r => setTimeout(r, 10000));
-
-    let messages = await client.testChannel.messages.fetch({limit: 1});
-    expect(messages.at(0).content).toBe("Pong!")
+    let response = await client.waitForMessage({"content": "Pong!"})
+    expect(response.content).toBe("Pong!")
 
 
     

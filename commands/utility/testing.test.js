@@ -1,6 +1,7 @@
 require('module-alias-jest/register')
 const MatthewClient = require('@client');
-const config = require('@config');
+const config = require('@config/config.json');
+const userBots = require('@config/userBots.json');
 const client = new MatthewClient(config,true);
 
 
@@ -21,7 +22,7 @@ beforeAll(async () => {
 
     client.testGuild = await client.guilds.fetch(config['guildId']);
     bot1 = new UserBot();
-    await bot1.login("matttangclone5@gmail.com", "matthewtestingbot");
+    await bot1.login(userBots["bots"][0]["username"], userBots["bots"][0]["password"]);
     bot1.guildId = config['guildId']
 }, 100_000)
 
@@ -41,15 +42,9 @@ describe('testing command', () => {
 
     await bot1.sendCommand("testing", "MatthewBot2");
 
-    let nextMessage = await new Promise((resolve, reject) => {
-        client.once("error", reject);
-        client.once(Events.MessageCreate, (message) => {
-            client.off("error", reject);
-            resolve(message);
-        });
-    });
+    let response = await client.waitForMessage({"embeds": [{"data": {"description":"ephemeral message"}}]})
     
-    expect(nextMessage.embeds[0].description).toBe("ephemeral message");
+    expect(response.embeds[0].description).toBe("ephemeral message");
 
 
     

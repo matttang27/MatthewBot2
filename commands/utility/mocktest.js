@@ -32,6 +32,7 @@ module.exports = {
     const row = new ActionRowBuilder().addComponents(test);
 
     await interaction.editReply({
+      content: "Press Button",
         components: [row],
         });
     
