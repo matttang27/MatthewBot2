@@ -1,6 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const { Client, Collection, Events, GatewayIntentBits } = require('discord.js');
+const { Client, Collection, Events, GatewayIntentBits, Message, Embed } = require('discord.js');
 
 class MatthewClient extends Client {
     constructor(config, testing) {
@@ -11,7 +11,8 @@ class MatthewClient extends Client {
                 GatewayIntentBits.GuildMessages, 
                 GatewayIntentBits.GuildMessageReactions, 
                 GatewayIntentBits.DirectMessages, 
-                GatewayIntentBits.DirectMessageReactions
+                GatewayIntentBits.DirectMessageReactions,
+                GatewayIntentBits.GuildMembers,
             ]
         });
 
@@ -70,9 +71,80 @@ class MatthewClient extends Client {
 
     login() {
         super.login(this.config.token);
-
-        
     }
+
+    /**
+     * For testing purposes: returns a Promise for a specific messageCreate to be emitted.
+     * @param {Object} options
+     * @param {String} options.content
+     * @param {Object[]} options.embeds
+     * @param {Number} options.timeLimit
+     * @param {Number} options.channelId
+     * @returns 
+     */
+    async waitForMessage({
+        content = "",
+        embeds = [],
+        components = [],
+        userId = this.user.id,
+        timeLimit = 5000,
+        channelId = this.testChannel.id
+    } = {}) {
+        let client = this;
+        
+        return await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                client.off(Events.MessageCreate,createdFunc);
+                client.off(Events.MessageUpdate,updateFunc);
+                reject(new Error("Time limit reached"));
+            }, timeLimit);
+    
+            /**
+             * 
+             * @param {Message} message 
+             */
+            let createdFunc = (message) => {
+                if (message.author.id = userId && message.content == content && message.channel.id == channelId
+                    && this.matchesSimplifiedProperties(message.embeds,embeds)
+                    && this.matchesSimplifiedProperties(message.components,components)
+                ) {
+                    client.off(Events.MessageCreate,createdFunc);
+                    client.off(Events.MessageUpdate,updateFunc);
+                    clearTimeout(timeout);
+                    resolve(message);
+                }
+            }
+
+            let updateFunc = (oldMessage, newMessage) => {createdFunc(newMessage)}
+            client.on(Events.MessageCreate, createdFunc);
+            client.on(Events.MessageUpdate, updateFunc);
+        });
+    }
+
+    /**
+     * Compares a real object to a simplified version (ex. for embeds or components).
+     * Returns true if every property in the simplified version is identical in the real object.
+     * @param {Object} real 
+     * @param {Object} mock
+     */
+    matchesSimplifiedProperties(real,mock) {
+        for (let key in mock) {
+            if (!real.hasOwnProperty(key)) return false;
+            /*
+            if (mock[key].constructor == Array) {
+                if (real[key].constructor != Array || real[key].length != mock[key].length) return false;
+                for (i=0;i<real[key].length;i++) {
+                    if (! this.matchesSimplifiedProperties(real[key][i],mock[key][i])) return false;
+                }*/
+            if (typeof real[key] == "object") {
+                if (! this.matchesSimplifiedProperties(real[key], mock[key])) return false;
+            } else {
+                if (real[key] != mock[key]) return false;
+            }
+        }
+        return true;
+    }
+
 }
 
 module.exports = MatthewClient;
