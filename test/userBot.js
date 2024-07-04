@@ -8,10 +8,11 @@ class UserBot {
 
   async findAndClick(selector) {
     await this.page.waitForSelector(selector);
-    await new Promise((r) => setTimeout(r, 3000));
+    await new Promise((r) => setTimeout(r, 1000));
     await this.page.click(selector);
-    await new Promise((r) => setTimeout(r, 3000));
+    await new Promise((r) => setTimeout(r, 1000));
   }
+
   async getUserID() {
     await this.findAndClick('[aria-label="Set Status"]');
 
@@ -55,7 +56,7 @@ class UserBot {
     if (!isDeveloperModeEnabled) {
       await this.page.click(developerModeSelector);
     }
-    await new Promise((r) => setTimeout(r, 3000));
+    await new Promise((r) => setTimeout(r, 1000));
 
     await this.findAndClick('[aria-label="Close"]');
 
@@ -102,7 +103,9 @@ class UserBot {
   //sends a message
   async sendMessage(content, guildId=this.guildId, channelId=this.channelId) {
     console.log(guildId, channelId);
-    await this.page.goto(`https://discord.com/channels/${guildId}/${channelId}`);
+    if (this.page.url() != `https://discord.com/channels/${guildId}/${channelId}`) {
+      await this.page.goto(`https://discord.com/channels/${guildId}/${channelId}`);
+    }
 
     // Wait for the message input area to load
     await this.page.waitForSelector('div[role="textbox"]');
@@ -113,7 +116,9 @@ class UserBot {
 
   async sendCommand(commandName, botName, guildId=this.guildId, channelId=this.channelId) {
     console.log(guildId, channelId);
-    await this.page.goto(`https://discord.com/channels/${guildId}/${channelId}`);
+    if (this.page.url() != `https://discord.com/channels/${guildId}/${channelId}`) {
+      await this.page.goto(`https://discord.com/channels/${guildId}/${channelId}`);
+    }
 
     // Wait for the message input area to load
     await this.page.waitForSelector('div[role="textbox"]');
@@ -140,8 +145,13 @@ class UserBot {
   }
 
   async clickButton(buttonName, messageId ,guildId=this.guildId, channelId=this.channelId) {
+
+    await new Promise((r) => setTimeout(r, 1000));
     console.log(guildId, channelId);
-    await this.page.goto(`https://discord.com/channels/${guildId}/${channelId}`);
+    if (this.page.url() != `https://discord.com/channels/${guildId}/${channelId}`) {
+      await this.page.goto(`https://discord.com/channels/${guildId}/${channelId}`);
+    }
+    
     await this.page.waitForSelector(`[id="message-accessories-${messageId}"]`)
 
     let button = await this.page.evaluateHandle((messageId,buttonName) => {
