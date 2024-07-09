@@ -6,6 +6,8 @@ const { l } = require("@root/emojiCharacters");
 const client = new MatthewClient(config, true);
 const UserBot = require("@userBot");
 
+const BOT_COUNT = 2;
+
 (async () => {
   client.login();
 
@@ -22,22 +24,35 @@ const UserBot = require("@userBot");
     "720351714791915523"
   );
 
-  const bot1 = new UserBot();
-  bot1.guildId = client.testGuild.id;
-  bot1.channelId = client.testChannel.id;
+  let bots = [];
+  for (var i = 0; i < BOT_COUNT; i++) {
+    bots.push(new UserBot())
+    await bots[i].login(
+      userBots["bots"][i]["username"],
+      userBots["bots"][i]["password"]
+    );
+    
+    bots[i].user = await client.testGuild.members.fetch(bots[i].userId);
+    bots[i].guildId = config["guildId"];
+    bots[i].channelId = client.testChannel.id;
+  }
 
-  await bot1.login(
-    userBots["bots"][0]["username"],
-    userBots["bots"][0]["password"]
-  );
+  
 
-  await bot1.sendCommand("testing", "MatthewBot2");
+  await bots[0].sendCommand("testgame", "MatthewBot2");
 
-  let response = await client.waitForMessage({
-    embeds: [{ description: "ephemeral message" }],
-  });
+    response = await client.waitForMessage({
+      embeds: [
+        {data: {title: "game game created!  [1/4]"}}],
+      components: [{ components: [{},{},{}] }],
+    });
 
-  console.log(response);
-  //let messages = await client.testChannel.messages.fetch({limit: 5});
-  //console.log(messages[2].content);
+    await bots[1].clickButton("Join / Leave", response)
+
+    response = await client.waitForMessage({
+      embeds: [
+        {data: {title: "game game created!  [2/4]"}}],
+      components: true,
+    });
+
 })();

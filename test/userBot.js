@@ -3,6 +3,7 @@ const puppeteer = require("puppeteer");
 class UserBot {
   guildId;
   channelId;
+  userId;
   
   constructor() {}
 
@@ -94,10 +95,12 @@ class UserBot {
       userId = await this.getUserID();
     }
 
+    this.userId = userId;
+
     await new Promise((r) => setTimeout(r, 1000));
 
-    this.userId = userId;
-    console.log(userId);
+    
+    console.log("userBot login:", userId);
   }
 
   //sends a message
@@ -144,7 +147,9 @@ class UserBot {
 
   }
 
-  async clickButton(buttonName, messageId ,guildId=this.guildId, channelId=this.channelId) {
+  async clickButton(buttonName, message ,guildId=this.guildId, channelId=this.channelId) {
+    //find what "row" the button is on (embeds count as rows too)
+
 
     await new Promise((r) => setTimeout(r, 1000));
     console.log(guildId, channelId);
@@ -152,15 +157,26 @@ class UserBot {
       await this.page.goto(`https://discord.com/channels/${guildId}/${channelId}`);
     }
     
-    await this.page.waitForSelector(`[id="message-accessories-${messageId}"]`)
+    await this.page.waitForSelector(`[id="message-accessories-${message.id}"]`)
 
-    let button = await this.page.evaluateHandle((messageId,buttonName) => {
-      let buttons = document.getElementById(`message-accessories-${messageId}`).children[0].children[0].children[0];
+    let button = await this.page.evaluateHandle((message,buttonName) => {
+      let accs = document.getElementById(`message-accessories-${message.id}`)
+      for (var i=0;i<accs.children.length; i++) {
+        if (accs.children[i].className.startsWith("container")) {
+          let buttons = document.getElementById(`message-accessories-${message.id}`).children[i].children[0].children[0];
+          let found = Array.from(buttons.children).find(button => button.textContent == buttonName);
+          if (found) {return found}
+        }
+        
 
-      return Array.from(buttons.children).find(button => button.textContent == buttonName);
-    }, messageId, buttonName);
+      }
+      return undefined
+    }, message, buttonName);
 
-    await new Promise(r => setTimeout(r, 2000));
+    if (! button) {
+      console.error("Button not found");
+      return;
+    }
 
     await button.click()
 

@@ -314,14 +314,14 @@ class Game {
           }
         } else if (i.customId === "cancel") {
           if (i.user.id == this.players.at(0)) {
-            collector.stop("cancelled");
+            oCollector.stop("cancelled");
           } else {
             await i.reply(errorEmbed("You are not the owner of this lobby!"));
           }
         } else if (i.customId === "leave") {
           if (this.players.has(i.user.id)) {
             if (this.players.size < this.properties.minPlayers) {
-              collector.stop("not enough");
+              oCollector.stop("not enough");
               await i.deferUpdate();
             } else {
               this.players.delete(i.user.id);
