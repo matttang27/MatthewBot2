@@ -1,8 +1,14 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const { Client, Collection, Events, GatewayIntentBits, Message, Embed } = require('discord.js');
+const { Client, Collection, Events, GatewayIntentBits, Message, Guild, TextChannel } = require('discord.js');
 
 class MatthewClient extends Client {
+    //Testing variables only
+    /** @type {TextChannel} */
+    testChannel;
+    /** @type {Guild} */
+    testGuild;
+
     constructor(config, testing) {
         super({
             intents: [
@@ -74,13 +80,28 @@ class MatthewClient extends Client {
     }
 
     /**
-     * For testing purposes: returns a Promise for a specific messageCreate to be emitted.
+     * @description For testing purposes: returns a Promise for a specific messageCreate or messageUpdate to be emitted.
+     * Options have default values, and can be set to true to accept any value.
+     * @example
+     * // Embed Example: Two embeds with "hello" and "bye" as descriptions
+     * [
+     *  {"data": {"description":"hello"}},
+     *  {"data": {"description":"bye"}}
+     * ]
+     * 
+     * // Buttons Example: One action row with 2 buttons label "Start" and "End", and customId "start-button"
+     * [{ components: 
+     *   [{data: { label: "Start", customId: "start-button"}}]
+     *   [{data: { label: "End"}}] }]
+     *  }]
+     * 
+     * @see {@link https://discord.js.org/docs/packages/discord.js/14.15.3/Message:Class} for the structure of embeds and components
      * @param {Object} options
-     * @param {String} options.content
-     * @param {Object[]} options.embeds
-     * @param {Number} options.timeLimit
-     * @param {Number} options.channelId
-     * @returns 
+     * @param {String | true} options.content
+     * @param {Object[] | true} options.embeds
+     * @param {Number | true} options.timeLimit
+     * @param {Number | true} options.channelId
+     * @returns {Message}
      */
     async waitForMessage({
         content = "",
@@ -104,9 +125,11 @@ class MatthewClient extends Client {
              * @param {Message} message 
              */
             let createdFunc = (message) => {
-                if (message.author.id = userId && message.content == content && message.channel.id == channelId
-                    && this.matchesSimplifiedProperties(message.embeds,embeds)
-                    && this.matchesSimplifiedProperties(message.components,components)
+                if (message.author.id = userId && 
+                    (content === true || message.content == content) &&
+                    (channelId === true || message.channel.id) &&
+                    (embeds === true || this.matchesSimplifiedProperties(message.embeds,embeds)) && 
+                    (components === true || this.matchesSimplifiedProperties(message.components,components))
                 ) {
                     client.off(Events.MessageCreate,createdFunc);
                     client.off(Events.MessageUpdate,updateFunc);
