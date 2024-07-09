@@ -28,6 +28,12 @@ beforeAll(async () => {
 
   client.testGuild = await client.guilds.fetch(config["guildId"]);
 
+  let channels = await client.testGuild.channels.fetch();
+
+  for (var channel of channels) {
+    if (channel[1].name == "testing-channel") await channel[1].delete();
+  }
+
   for (var i = 0; i < BOT_COUNT; i++) {
     bots.push(new UserBot());
     await bots[i].login(
@@ -38,6 +44,8 @@ beforeAll(async () => {
     bots[i].user = await client.testGuild.members.fetch(bots[i].userId);
     bots[i].guildId = config["guildId"];
   }
+
+  
 }, 300_000);
 
 beforeEach(async () => {
@@ -49,12 +57,10 @@ beforeEach(async () => {
   }
 });
 
+/*
 afterEach(async () => {
-  await new Promise((r) => {
-    setTimeout(r, 5000);
-  });
   
-}, 10000);
+}, 10000);*/
 
 describe("testgame command", () => {
   it("runs a normal game properly", async () => {

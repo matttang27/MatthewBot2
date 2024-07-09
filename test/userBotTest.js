@@ -20,6 +20,13 @@ const BOT_COUNT = 2;
   });
 
   client.testGuild = await client.guilds.fetch(config["guildId"]);
+
+  let channels = await client.testGuild.channels.fetch();
+
+  for (var channel of channels) {
+    if (channel[1].name == "testing-channel") await channel[1].delete();
+  }
+
   client.testChannel = await client.testGuild.channels.fetch(
     "720351714791915523"
   );
