@@ -21,8 +21,8 @@
   "_aliases": {
     "@root": ".",
     "@client": "./matthewClient.js",
-    "@testClient": "./test/testClient.js",
     "@config": "./config",
-    "@userBot": "./test/userBot.js"
+    "@userBot": "./test/userBot.js",
+    "@testSetup": "./test/testSetup.js"
   }
 }

@@ -66,6 +66,7 @@ class UserBot {
   async login(username, password) {
     this.browser = await puppeteer.launch({ headless: false });
     this.page = await this.browser.newPage();
+    
     const context = this.browser.defaultBrowserContext();
     await context.overridePermissions("https://discord.com", [
       "clipboard-read",

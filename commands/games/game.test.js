@@ -15,52 +15,23 @@ let bots = [];
 
 /** @type {Message} */
 let response;
+
+const setup = require('@testSetup');
 beforeAll(async () => {
-  client.login();
-
-  await new Promise((resolve, reject) => {
-    client.once("error", reject);
-    client.once("ready", () => {
-      client.off("error", reject);
-      resolve();
-    });
-  });
-
-  client.testGuild = await client.guilds.fetch(config["guildId"]);
-
-  let channels = await client.testGuild.channels.fetch();
-
-  for (var channel of channels) {
-    if (channel[1].name == "testing-channel") await channel[1].delete();
-  }
-
-  for (var i = 0; i < BOT_COUNT; i++) {
-    bots.push(new UserBot());
-    await bots[i].login(
-      userBots["bots"][i]["username"],
-      userBots["bots"][i]["password"]
-    );
-
-    bots[i].user = await client.testGuild.members.fetch(bots[i].userId);
-    bots[i].guildId = config["guildId"];
-  }
-
-  
-}, 300_000);
+  bots = await setup(client, 2)
+}, 100_000);
 
 beforeEach(async () => {
   client.testChannel = await client.testGuild.channels.create({
-    name: "testing-channel",
+      name: "testing-channel",
   });
-  for (var i = 0; i < BOT_COUNT; i++) {
-    bots[i].channelId = client.testChannel.id;
-  }
+  
+  bots.forEach(bot => bot.channelId = client.testChannel.id)
 });
 
-/*
-afterEach(async () => {
-  
-}, 10000);*/
+afterAll(async () => {
+  bots.forEach(bot => bot.browser.close())
+})
 
 describe("testgame command", () => {
   it("runs a normal game properly", async () => {

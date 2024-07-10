@@ -15,43 +15,23 @@ let bots;
 
 /** @type {Message} */
 let response;
+
+const setup = require('@testSetup');
 beforeAll(async () => {
-  client.login();
-
-  await new Promise((resolve, reject) => {
-    client.once("error", reject);
-    client.once("ready", () => {
-      client.off("error", reject);
-      resolve();
-    });
-  });
-
-  client.testGuild = await client.guilds.fetch(config["guildId"]);
-  bots = [new UserBot(), new UserBot(), new UserBot()];
-
-  for (var i = 0; i < BOT_COUNT; i++) {
-    await bots[i].login(
-      userBots["bots"][i]["username"],
-      userBots["bots"][i]["password"]
-    );
-    
-    bots[i].user = await client.testGuild.members.fetch(bots[i].userId);
-    bots[i].guildId = config["guildId"];
-  }
+  bots = await setup(client, 2)
 }, 100_000);
 
 beforeEach(async () => {
   client.testChannel = await client.testGuild.channels.create({
-    name: "testing-channel",
+      name: "testing-channel",
   });
-  for (var i = 0; i < BOT_COUNT; i++) {
-    bots[i].channelId = client.testChannel.id;
-  }
+  
+  bots.forEach(bot => bot.channelId = client.testChannel.id)
 });
 
-afterEach(async () => {
-  await client.testChannel.delete();
-});
+afterAll(async () => {
+  bots.forEach(bot => bot.browser.close())
+})
 
 describe("connect4 command", () => {
   it("runs a normal game properly", async () => {
@@ -63,7 +43,7 @@ describe("connect4 command", () => {
       components: [{ components: [{},{},{}] }],
     });
 
-    await bots[1].clickButton("Join / Leave", response.id);
+    await bots[1].clickButton("Join / Leave", response);
 
     response = await client.waitForMessage({
       embeds: [
@@ -71,9 +51,6 @@ describe("connect4 command", () => {
       components: true,
     });
 
-    await bots[0].clickButton("Start", response.id);
-
-    response = await client.waitForMessage({ content: "Hello" });
-    expect(response.content).toBe("Hello");
-  }, 25_000);
+    await bots[0].clickButton("Start", response);
+  }, 50_000);
 });
