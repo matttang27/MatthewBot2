@@ -84,13 +84,13 @@ class MatthewClient extends Client {
      * Options have default values, and can be set to true to accept any value.
      * @example
      * // Embed Example: Two embeds with "hello" and "bye" as descriptions
-     * [
+     * embeds: [
      *  {"data": {"description":"hello"}},
      *  {"data": {"description":"bye"}}
      * ]
      * 
      * // Buttons Example: One action row with 2 buttons label "Start" and "End", and customId "start-button"
-     * [{ components: 
+     * components: [{ components: 
      *   [{data: { label: "Start", customId: "start-button"}}]
      *   [{data: { label: "End"}}] }]
      *  }]
@@ -111,13 +111,15 @@ class MatthewClient extends Client {
         timeLimit = 5000,
         channelId = this.testChannel.id
     } = {}) {
+
+        
         let client = this;
         
         return await new Promise((resolve, reject) => {
             const timeout = setTimeout(() => {
                 client.off(Events.MessageCreate,createdFunc);
                 client.off(Events.MessageUpdate,updateFunc);
-                reject(new Error("Time limit reached"));
+                reject(new Error(`Time limit reached`));
             }, timeLimit);
     
             /**
@@ -125,7 +127,7 @@ class MatthewClient extends Client {
              * @param {Message} message 
              */
             let createdFunc = (message) => {
-                if (message.author.id = userId && 
+                if (message.author.id == userId && 
                     (content === true || message.content == content) &&
                     (channelId === true || message.channel.id) &&
                     (embeds === true || this.matchesSimplifiedProperties(message.embeds,embeds)) && 
