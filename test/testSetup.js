@@ -37,4 +37,14 @@ async function setup(client, BOT_COUNT) {
 
     return bots;
 }
-module.exports = setup;
+
+async function eachSetup(client,bots) {
+    client.testChannel = await client.testGuild.channels.create({
+        name: "testing-channel",
+    });
+    
+    bots.forEach(bot => bot.channelId = client.testChannel.id)
+  
+    await bots[0].sendMessage(expect.getState().currentTestName);
+}
+module.exports = {setup, eachSetup};

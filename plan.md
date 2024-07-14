@@ -8,11 +8,11 @@
 
 TODO:
 
-- Create jest tests for all current code
+- **Create jest tests for all current code**
     - **figure out how to detect ephemeral responses (I don't think they appear in cache)**
     - **make username / password read from config**
     - **make seeing client output results simpler**
-    - create an extensive connect4.test.js
+    - **create an extensive connect4.test.js**
 - Complete Connect4game
     - Timer in footer
     - Lose on timeout

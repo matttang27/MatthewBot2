@@ -5,17 +5,13 @@ const userBots = require("@config/userBots.json");
 const client = new MatthewClient(config, true);
 
 const UserBot = require("@userBot");
-const setup = require('@testSetup');
+const {setup, eachSetup} = require('@testSetup');
 beforeAll(async () => {
   bots = await setup(client, 1)
-}, 1000_000);
+}, 100_000);
 
 beforeEach(async () => {
-  client.testChannel = await client.testGuild.channels.create({
-      name: "testing-channel",
-  });
-  
-  bots.forEach(bot => bot.channelId = client.testChannel.id)
+  await eachSetup(client,bots);
 });
 
 afterAll(async () => {

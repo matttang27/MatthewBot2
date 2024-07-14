@@ -16,19 +16,14 @@ let bots;
 /** @type {Message} */
 let response;
 
-const setup = require('@testSetup');
+const {setup, eachSetup} = require('@testSetup');
 beforeAll(async () => {
   bots = await setup(client, 2)
 }, 100_000);
 
 beforeEach(async () => {
-  client.testChannel = await client.testGuild.channels.create({
-      name: "testing-channel",
-  });
-  
-  bots.forEach(bot => bot.channelId = client.testChannel.id)
+  await eachSetup(client,bots);
 });
-
 afterAll(async () => {
   bots.forEach(bot => bot.browser.close())
 })

@@ -5,6 +5,11 @@ const fs = require('fs');
 module.exports = {
     name: Events.InteractionCreate,
     async execute(interaction) {
+        console.log(interaction.componentType, interaction.user.id)
+
+        if (interaction.user.id === false || interaction.user.id === true) {
+            console.log("NOT WORKING")
+        }
         if (!interaction.isChatInputCommand()) return;
 
 

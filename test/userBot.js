@@ -106,13 +106,15 @@ class UserBot {
 
   //sends a message
   async sendMessage(content, guildId=this.guildId, channelId=this.channelId) {
-    console.log(guildId, channelId);
     if (this.page.url() != `https://discord.com/channels/${guildId}/${channelId}`) {
       await this.page.goto(`https://discord.com/channels/${guildId}/${channelId}`);
     }
 
     // Wait for the message input area to load
     await this.page.waitForSelector('div[role="textbox"]');
+
+
+    await new Promise(r => setTimeout(r, 2000))
 
     await this.page.type('div[role="textbox"]', content);
     await this.page.keyboard.press("Enter");
@@ -128,7 +130,7 @@ class UserBot {
     await this.page.waitForSelector('div[role="textbox"]');
 
     await this.page.type('div[role="textbox"]', "/" + commandName);
-    await new Promise((r) => setTimeout(r, 1000));
+    await new Promise((r) => setTimeout(r, 2000));
 
     while (true) {
       let currentBotName = await this.page.evaluate(() => {
@@ -152,7 +154,7 @@ class UserBot {
     //find what "row" the button is on (embeds count as rows too)
 
 
-    await new Promise((r) => setTimeout(r, 1000));
+    
     console.log(guildId, channelId);
     if (this.page.url() != `https://discord.com/channels/${guildId}/${channelId}`) {
       await this.page.goto(`https://discord.com/channels/${guildId}/${channelId}`);
@@ -160,11 +162,13 @@ class UserBot {
     
     await this.page.waitForSelector(`[id="message-accessories-${message.id}"]`)
 
+    await new Promise((r) => setTimeout(r, 2000));
+
     let button = await this.page.evaluateHandle((message,buttonName) => {
       let accs = document.getElementById(`message-accessories-${message.id}`)
       for (var i=0;i<accs.children.length; i++) {
         if (accs.children[i].className.startsWith("container")) {
-          let buttons = document.getElementById(`message-accessories-${message.id}`).children[i].children[0].children[0];
+          let buttons = accs.children[i].children[0].children[0];
           let found = Array.from(buttons.children).find(button => button.textContent == buttonName);
           if (found) {return found}
         }

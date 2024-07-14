@@ -5,61 +5,79 @@ const userBots = require("@config/userBots.json");
 const { l } = require("@root/emojiCharacters");
 const client = new MatthewClient(config, true);
 const UserBot = require("@userBot");
-
+const setup = require("@testSetup");
 const BOT_COUNT = 2;
 
 (async () => {
-  client.login();
+    bots = await setup(client, BOT_COUNT);
 
-  await new Promise((resolve, reject) => {
-    client.once("error", reject);
-    client.once("ready", () => {
-      client.off("error", reject);
-      resolve();
-    });
-  });
-
-  client.testGuild = await client.guilds.fetch(config["guildId"]);
-
-  let channels = await client.testGuild.channels.fetch();
-
-  for (var channel of channels) {
-    if (channel[1].name == "testing-channel") await channel[1].delete();
-  }
-
-  client.testChannel = await client.testGuild.channels.fetch(
-    "720351714791915523"
-  );
-
-  let bots = [];
-  for (var i = 0; i < BOT_COUNT; i++) {
-    bots.push(new UserBot())
-    await bots[i].login(
-      userBots["bots"][i]["username"],
-      userBots["bots"][i]["password"]
-    );
     
-    bots[i].user = await client.testGuild.members.fetch(bots[i].userId);
-    bots[i].guildId = config["guildId"];
-    bots[i].channelId = client.testChannel.id;
-  }
 
-  
+    client.testChannel = await client.testGuild.channels.fetch("720351714791915523")
 
-  await bots[0].sendCommand("testgame", "MatthewBot2");
+    bots.forEach((bot) => (bot.channelId = client.testChannel.id));
+    await bots[0].sendCommand("testgame", "MatthewBot2");
 
     response = await client.waitForMessage({
-      embeds: [
-        {data: {title: "game game created!  [1/4]"}}],
-      components: [{ components: [{},{},{}] }],
+        embeds: [{ data: { title: "game game created!  [1/4]" } }],
+        components: [{ components: [{}, {}, {}] }],
     });
 
-    await bots[1].clickButton("Join / Leave", response)
+    await bots[1].clickButton("Join / Leave", response);
 
     response = await client.waitForMessage({
-      embeds: [
-        {data: {title: "game game created!  [2/4]"}}],
-      components: true,
+        embeds: [{ data: { title: "game game created!  [2/4]" } }],
+        components: true,
     });
 
+    await bots[0].clickButton("Start", response);
+
+    response = await client.waitForMessage({
+        embeds: [{ data: { title: "Options" } }],
+        components: true,
+    });
+
+    
+
+    await new Promise((r) => setTimeout(r,5000))
+
+    await bots[0].sendMessage("1");
+
+    
+
+    response = await client.waitForMessage({
+        embeds: [{ data: { title: "Editing example" } }],
+        components: true,
+    });
+
+    /*
+
+    await new Promise((r) => setTimeout(r,5000))
+
+    await bots[0].page.waitForSelector('div[role="textbox"]');
+
+
+    await new Promise(r => setTimeout(r, 2000))
+
+    await bots[0].page.type('div[role="textbox"]', "7");
+    await bots[0].page.keyboard.press("Enter");
+
+    /*
+
+    response = await client.waitForMessage({
+        embeds: [{ data: { title: "Options" } }],
+        components: true,
+    });
+
+
+
+    await new Promise((r) => setTimeout(r,5000))
+
+    await bots[0].clickButton("Continue", response);
+
+    response = await client.waitForMessage({
+        embeds: [{ data: { title: "We have a winner!" } }],
+        components: true,
+    });
+    */
 })();

@@ -8,9 +8,7 @@ module.exports = {
         
 
 
-       console.log("update")
-       console.log(oldMessage);
-       console.log(newMessage);
+       console.log("update", newMessage.author.username, newMessage.author.id, newMessage.content)
        if (newMessage.author.bot) return;
 
        

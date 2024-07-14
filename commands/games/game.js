@@ -148,7 +148,7 @@ class Game {
 
       const collector = this.response.createMessageComponentCollector({
         componentType: ComponentType.Button,
-        time: 240_000,
+        time: 120_000,
       });
 
       collector.on("collect", async (i) => {
@@ -290,9 +290,9 @@ class Game {
         components: [row],
       });
 
-      const bCollector = message.createMessageComponentCollector({
+      const bCollector = await message.createMessageComponentCollector({
         componentType: ComponentType.Button,
-        time: 200_000,
+        time: 120_000,
       });
 
       let oCollector = await this.channel.createMessageCollector({
@@ -300,20 +300,23 @@ class Game {
         time: 120_000,
       });
 
-      let oFilter = (m) => true;
+      let oFilter = (m) => m.author.id == this.players.at(0).id;
 
       let oSelected;
 
       bCollector.on("collect", async (i) => {
         if (i.customId === "continue") {
           if (i.user.id == this.players.at(0)) {
-            await i.deferUpdate();
+            bCollector.stop();
             oCollector.stop();
+            await i.deferUpdate();
+            
           } else {
             await i.reply(errorEmbed("You are not the owner of this lobby!"));
           }
         } else if (i.customId === "cancel") {
           if (i.user.id == this.players.at(0)) {
+            bCollector.stop()
             oCollector.stop("cancelled");
           } else {
             await i.reply(errorEmbed("You are not the owner of this lobby!"));
@@ -321,6 +324,7 @@ class Game {
         } else if (i.customId === "leave") {
           if (this.players.has(i.user.id)) {
             if (this.players.size < this.properties.minPlayers) {
+              bCollector.stop();
               oCollector.stop("not enough");
               await i.deferUpdate();
             } else {
