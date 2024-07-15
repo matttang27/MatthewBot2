@@ -14,11 +14,13 @@ TODO:
     - **make seeing client output results simpler**
     - **create an extensive connect4.test.js**
 - Complete Connect4game
-    - Timer in footer
-    - Lose on timeout
+    - **Timer in footer**
+    - **Lose on timeout**
+    - **More than 2 players**
     - Set emojis
     - Better win screen
     - Gamemodes (blind)
 - Set up mongodb
     - Create profile / stats
     - Stats for Connect4
+- Split prod and testing (I should probably do this earlier)

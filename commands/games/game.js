@@ -277,7 +277,7 @@ class Game {
       settingsEmbed.setDescription(
         `${this.options
           .map((option, index) => {
-            return `${index + 1}. ${option.name} - **${this.currentOptions[option.name]}**`;
+            return `${index + 1}. ${option.label} - **${this.currentOptions[option.name]}**`;
           })
           .join("\n")}\n\n${this.players.at(
           0
