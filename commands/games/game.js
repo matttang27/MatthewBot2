@@ -327,14 +327,14 @@ class Game {
 
             const bCollector = await message.createMessageComponentCollector({
                 componentType: ComponentType.Button,
-                time: 500_000,
+                time: 120_000,
             });
 
             let optionFilter = (m) => m.author.id == this.players.at(0).user.id;
 
             const oCollector = await this.channel.createMessageCollector({
                 filter: optionFilter,
-                time: 120_000,
+                time: 500_000,
             });
 
             
@@ -356,8 +356,8 @@ class Game {
                     }
                 } else if (i.customId === "cancel") {
                     if (i.user.id == this.players.at(0).user.id) {
-                        bCollector.stop();
-                        oCollector.stop("cancelled");
+                        bCollector.stop("cancelled");
+                        oCollector.stop();
                     } else {
                         await i.reply(
                             errorEmbed("You are not the owner of this lobby!")
@@ -366,8 +366,8 @@ class Game {
                 } else if (i.customId === "leave") {
                     if (this.players.has(i.user.id)) {
                         if (this.players.size < this.properties.minPlayers) {
-                            bCollector.stop();
-                            oCollector.stop("not enough");
+                            bCollector.stop("not enough");
+                            oCollector.stop();
                             await i.deferUpdate();
                         } else {
                             this.players.delete(i.user.id);
@@ -378,6 +378,22 @@ class Game {
                     } else {
                         await i.reply(errorEmbed("You are not in this lobby!"));
                     }
+                }
+            });
+
+            bCollector.on("end", async (c, r) => {
+                message.delete();
+                if (r == "cancelled" || r == "empty" || r == "not enough") {
+                    reject(r);
+                } else {
+                    this.mainEmbed.setTitle(
+                        `${this.properties.gameName} game ongoing!`
+                    );
+                    this.response.edit({
+                        embeds: [this.mainEmbed],
+                        components: [],
+                    });
+                    resolve();
                 }
             });
 
@@ -423,18 +439,7 @@ class Game {
 
             oCollector.on("end", async (c, r) => {
                 message.delete();
-                if (r == "cancelled" || r == "empty" || r == "not enough") {
-                    reject(r);
-                } else {
-                    this.mainEmbed.setTitle(
-                        `${this.properties.gameName} game ongoing!`
-                    );
-                    this.response.edit({
-                        embeds: [this.mainEmbed],
-                        components: [],
-                    });
-                    resolve();
-                }
+                
             });
         });
     }
