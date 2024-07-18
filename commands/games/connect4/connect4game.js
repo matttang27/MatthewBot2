@@ -37,14 +37,8 @@ class Connect4Game extends Game {
             minPlayers: 2,
             maxPlayers: 6,
         };
-        this.defaultEmojis = [
-            ":blue_circle:",
-            ":red_circle:",
-            ":yellow_circle:",
-            ":purple_circle:",
-            ":green_circle:",
-            ":orange_circle:",
-        ];
+        this.defaultEmojis = ["🔵", "🔴", "🟡", "🟣", "🟢", "🟠"];
+        this.bannedEmojis = ["❌", "⚫", "⚪"];
         this.options = [
             {
                 name: "height",
@@ -95,18 +89,166 @@ class Connect4Game extends Game {
         this.turn = 1;
         this.board;
     }
+
+    async editEmojiEmbed(embed) {
+        embed.setDescription(
+            `${this.players
+                .map((player) => {
+                    return `${player.user} - ${player.other.emoji}`;
+                })
+                .join("\n")}\n\n change your emoji by reacting to this message!`
+        );
+    }
+
     /**
-     * Starts the Connect 4 game.
-     * @returns {Promise<void>}
+     *
+     * @returns {Promise} whether the game should continue (not cancelled)
      */
+    async setup() {
+        //making sure winLength is at least minimum of width and height (otherwise impossible)
+        if (
+            this.currentOptions.winLength > this.currentOptions.width &&
+            this.currentOptions.winLength > this.currentOptions.height
+        ) {
+            this.currentOptions.winLength = Math.min(
+                options.width,
+                options.height
+            );
+        }
+
+        for (var i = 0; i < this.players.size; i++) {
+            this.players.at(i).other.emoji = this.defaultEmojis[i];
+        }
+
+        //Emoji selection
+
+        return new Promise(async (resolve, reject) => {
+            let message = await this.channel.send({
+                content: "Selecting emojis",
+            });
+            const continueB = new ButtonBuilder()
+                .setCustomId("continue")
+                .setLabel("Continue")
+                .setStyle(ButtonStyle.Primary);
+
+            const leave = new ButtonBuilder()
+                .setCustomId("leave")
+                .setLabel("Leave Game")
+                .setStyle(ButtonStyle.Secondary);
+
+            const cancel = new ButtonBuilder()
+                .setCustomId("cancel")
+                .setLabel("Cancel Game")
+                .setStyle(ButtonStyle.Danger);
+
+            const row = new ActionRowBuilder().addComponents(
+                continueB,
+                leave,
+                cancel
+            );
+
+            const emojisEmbed = new EmbedBuilder().setTitle("Options");
+
+            this.editEmojiEmbed(emojisEmbed);
+
+            await message.edit({
+                content: "",
+                embeds: [emojisEmbed],
+                components: [row],
+            });
+
+            const bCollector = await message.createMessageComponentCollector({
+                componentType: ComponentType.Button,
+                time: 120_000,
+            });
+
+            const rFilter = (r, u) => {
+                return this.players.has(u.id) &&
+                    (!this.players
+                        .map((p) => p.other.emoji)
+                        .includes(r.emoji.name)) &&
+                    (!this.bannedEmojis.includes(r.emoji.name));
+            };
+
+            const rCollector = await message.createReactionCollector({
+                filter: rFilter,
+                time: 500_000,
+            });
+
+            bCollector.on("collect", async (i) => {
+                if (i.customId === "continue") {
+                    if (i.user.id == this.players.at(0).user.id) {
+                        bCollector.stop();
+                        rCollector.stop();
+                        await i.deferUpdate();
+                    } else {
+                        await i.reply(
+                            errorEmbed("You are not the owner of this lobby!")
+                        );
+                    }
+                } else if (i.customId === "cancel") {
+                    if (i.user.id == this.players.at(0).user.id) {
+                        bCollector.stop("cancelled");
+                        rCollector.stop();
+                    } else {
+                        await i.reply(
+                            errorEmbed("You are not the owner of this lobby!")
+                        );
+                    }
+                } else if (i.customId === "leave") {
+                    if (this.players.has(i.user.id)) {
+                        if (this.players.size < this.properties.minPlayers) {
+                            bCollector.stop("not enough");
+                            rCollector.stop();
+                            await i.deferUpdate();
+                        } else {
+                            this.players.delete(i.user.id);
+                            this.editEmojiEmbed(emojisEmbed);
+                            await message.edit({ embeds: [emojisEmbed] });
+
+                            await i.reply(
+                                successEmbed("You are not in this lobby!")
+                            );
+                        }
+                    } else {
+                        await i.reply(errorEmbed("You are not in this lobby!"));
+                    }
+                }
+            });
+
+            rCollector.on("collect", async (r, u) => {
+                this.players.get(u.id).other.emoji = r.emoji.toString();
+                this.editEmojiEmbed(emojisEmbed);
+                await message.edit({ embeds: [emojisEmbed] });
+            });
+
+            bCollector.on("end", async (c, r) => {
+                message.delete();
+                if (r == "cancelled" || r == "empty" || r == "not enough") {
+                    reject(r);
+                } else {
+                    this.mainEmbed.setTitle(
+                        `${this.properties.gameName} game ongoing!`
+                    );
+                    this.response.edit({
+                        embeds: [this.mainEmbed],
+                        components: [],
+                    });
+                    resolve();
+                }
+            });
+        });
+    }
+
     async playGame() {
         return new Promise(async (resolve, reject) => {
             this.setEmptyBoard();
-            this.setEmojis();
 
-            this.currentPlayer = this.players.at(0)
+            this.currentPlayer = this.players.at(0);
 
             while (true) {
+
+                if (this.winner != null) {resolve()}
                 //board is full
                 if (
                     this.turn >
@@ -123,8 +265,8 @@ class Connect4Game extends Game {
                 }
 
                 if (this.players.size == 1) {
-                    this.winner = this.players.at(0)
-                    resolve()
+                    this.winner = this.players.at(0).user;
+                    resolve();
                     return;
                 }
 
@@ -134,7 +276,7 @@ class Connect4Game extends Game {
                 });
 
                 const filter = (m) =>
-                    m.author.id === this.currentPlayer.id &&
+                    m.author.id === this.currentPlayer.user.id &&
                     parseInt(m.content) >= 1 &&
                     parseInt(m.content) <= this.currentOptions.width &&
                     this.board[0][parseInt(m.content) - 1] == -1;
@@ -149,33 +291,49 @@ class Connect4Game extends Game {
                     .then((collected) => {
                         let move = parseInt(collected.first().content) - 1;
 
-                        for (var i = this.currentOptions.height - 1;i >= 0;i--) {
+                        for (
+                            var i = this.currentOptions.height - 1;
+                            i >= 0;
+                            i--
+                        ) {
                             if (this.board[i][move] == -1) {
-                                this.board[i][move] = this.currentPlayer.id;
+                                this.board[i][move] = this.currentPlayer.user.id;
                                 break;
                             }
                         }
 
                         if (this.checkWin() != -1) {
-                            this.winner = this.players.get(this.checkWin());
-                            resolve();
-                            return;
+                            this.winner = this.players.get(this.checkWin()).user;
+                            
+                        } else {
+                            this.currentPlayer = this.players.at(
+                                (Array.from(this.players)
+                                    .map((p) => p[0])
+                                    .indexOf(this.currentPlayer.user.id) +
+                                    1) %
+                                    this.players.size
+                            );
+    
+                            this.turn++;
                         }
 
-                        this.currentPlayer = this.players.at(
-                            (Array.from(this.players).map(p => p[0]).indexOf(this.currentPlayer.id) + 1) % this.players.size
-                        );
-
-                        this.turn++;
+                        
                     })
                     .catch(async (collected) => {
-                        await this.channel.send(`<@${this.currentPlayer.id}> ran out of time!`);
+                        await this.channel.send(
+                            `<@${this.currentPlayer.user.id}> ran out of time!`
+                        );
 
-                        let quitter = this.currentPlayer.id;
+                        let quitter = this.currentPlayer.user.id;
 
                         //gets the next player in the collection (wraps around if last)
                         this.currentPlayer = this.players.at(
-                            (Array.from(this.players).map(p => p[0]).indexOf(this.currentPlayer.id) + 1) % this.players.size);
+                            (Array.from(this.players)
+                                .map((p) => p[0])
+                                .indexOf(this.currentPlayer.user.id) +
+                                1) %
+                                this.players.size
+                        );
                         //then delete original player
                         this.players.delete(quitter);
                     });
@@ -196,14 +354,6 @@ class Connect4Game extends Game {
 
         this.board = board;
     }
-    /**
-     * Assigns emojis to players.
-     */
-    setEmojis() {
-        for (var i = 0; i < this.players.size; i++) {
-            this.players.at(i).emoji = this.defaultEmojis[i];
-        }
-    }
 
     /**
      * Generates a visual representation of the game board.
@@ -214,20 +364,19 @@ class Connect4Game extends Game {
         for (var i = 0; i < this.currentOptions.height; i++) {
             for (var j = 0; j < this.currentOptions.width; j++) {
                 if (this.board[i][j] == -1) {
-                    boardText += ":white_circle:"
-                } 
-                //For deleted players who timed out, put black circle
-                else if (! this.players.has(this.board[i][j])) {
-                    boardText += ":black_circle:"
+                    boardText += "⚪";
                 }
-                else {
-                    boardText += this.players.get(this.board[i][j]).emoji
+                //For deleted players who timed out, put black circle
+                else if (!this.players.has(this.board[i][j])) {
+                    boardText += "⚫";
+                } else {
+                    boardText += this.players.get(this.board[i][j]).other.emoji;
                 }
             }
             boardText += "\n";
         }
-        boardText += `\n\n  ${this.currentPlayer.emoji} - <@${
-            this.currentPlayer.id
+        boardText += `\n\n  ${this.currentPlayer.other.emoji} - <@${
+            this.currentPlayer.user.id
         }>'s turn. (Type 1-7) ${time(
             Math.round(
                 (Date.now() + this.currentOptions.timeLimit * 1000) / 1000

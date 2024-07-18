@@ -17,6 +17,11 @@ TODO:
     - **Timer in footer**
     - **Lose on timeout**
     - **More than 2 players**
+    - QOL:
+        - Make lobby close if not enough players at any point (currently does not work in settings)
+        - If time runs out, do not go to next stage and instead quit game
+        - Delete input setting messages
+        - Delete connect4 move messages
     - Set emojis
     - Better win screen
     - Gamemodes (blind)
