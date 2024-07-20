@@ -1,8 +1,16 @@
 require('module-alias-jest/register')
+
+
 const { REST, Routes } = require('discord.js');
-const { clientId, guildId, token } = require('@config/config.json');
+const { clientId, token } = require('@config/config.json');
 const fs = require('node:fs');
 const path = require('node:path');
+
+
+const MatthewClient = require('@client');
+const config = require('@config/config.json');
+const client = new MatthewClient(config,true);
+
 
 const commands = [];
 // Grab all the command folders from the commands directory you created earlier
@@ -31,15 +39,23 @@ const rest = new REST().setToken(token);
 // and deploy your commands!
 (async () => {
 	try {
-		console.log(`Started refreshing ${commands.length} application (/) commands.`);
 
-		// The put method is used to fully refresh all commands in the guild with the current set
-		const data = await rest.put(
-			Routes.applicationGuildCommands(clientId, guildId),
-			{ body: commands },
-		);
+		await client.login();
+		
+		let guilds = await client.guilds.fetch();
+		for (let i=0;i<guilds.size;i++) {
+			console.log(`Started refreshing ${commands.length} application (/) commands for ${guilds.at(i).name}`);
 
-		console.log(`Successfully reloaded ${data.length} application (/) commands.`);
+			// The put method is used to fully refresh all commands in the guild with the current set
+
+			const data = await rest.put(
+				Routes.applicationGuildCommands(clientId, guilds.at(i).id),
+				{ body: commands },
+			);
+
+			console.log(`Successfully reloaded ${data.length} application (/) commands for ${guilds.at(i).name}`);
+		}
+		
 	} catch (error) {
 		// And of course, make sure you catch and log any errors!
 		console.error(error);

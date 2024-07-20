@@ -75,8 +75,8 @@ class MatthewClient extends Client {
         }
     }
 
-    login() {
-        super.login(this.config.token);
+    async login() {
+        await super.login(this.config.token);
     }
 
     /**
