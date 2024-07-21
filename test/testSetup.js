@@ -2,6 +2,7 @@ require("module-alias-jest/register");
 const config = require("@config/config.json");
 const userBots = require("@config/userBots.json");
 const UserBot = require("@userBot");
+const { Client } = require("discord.js");
 async function setup(client, BOT_COUNT) {
     client.login();
 
@@ -38,6 +39,12 @@ async function setup(client, BOT_COUNT) {
     return bots;
 }
 
+/**
+ * Creates a testing channel in the test server, and sets the channelId for each bot
+ * Then sends the name of the test into the channel
+ * @param {Client} client 
+ * @param {UserBot[]} bots 
+ */
 async function eachSetup(client,bots) {
     client.testChannel = await client.testGuild.channels.create({
         name: "testing-channel",

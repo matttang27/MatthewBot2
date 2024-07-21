@@ -111,9 +111,10 @@ class Game {
                 .setTitle(`${this.properties.gameName} game cancelled`);
 
             const errMessages = {
-                cancelled: "Blame the leader",
-                empty: "Everyone left? Y'all scared?",
+                "cancelled": "Blame the leader",
+                "empty": "Everyone left? Y'all scared?",
                 "not enough": "Not enough players! Fake friends fr",
+                "time": "Make sure to press the button!"
             };
 
             if (err in errMessages) {
@@ -346,7 +347,7 @@ class Game {
             bCollector.on("collect", async (i) => {
                 if (i.customId === "continue") {
                     if (i.user.id == this.players.at(0).user.id) {
-                        bCollector.stop();
+                        bCollector.stop("continue");
                         oCollector.stop();
                         await i.deferUpdate();
                     } else {
@@ -365,7 +366,7 @@ class Game {
                     }
                 } else if (i.customId === "leave") {
                     if (this.players.has(i.user.id)) {
-                        if (this.players.size < this.properties.minPlayers) {
+                        if (this.players.size == this.properties.minPlayers) {
                             bCollector.stop("not enough");
                             oCollector.stop();
                             await i.deferUpdate();
@@ -383,7 +384,7 @@ class Game {
 
             bCollector.on("end", async (c, r) => {
                 message.delete();
-                if (r == "cancelled" || r == "empty" || r == "not enough") {
+                if (r != "continue") {
                     reject(r);
                 } else {
                     this.mainEmbed.setTitle(

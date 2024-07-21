@@ -178,7 +178,7 @@ class Connect4Game extends Game {
             bCollector.on("collect", async (i) => {
                 if (i.customId === "continue") {
                     if (i.user.id == this.players.at(0).user.id) {
-                        bCollector.stop();
+                        bCollector.stop("continue");
                         rCollector.stop();
                         await i.deferUpdate();
                     } else {
@@ -197,7 +197,7 @@ class Connect4Game extends Game {
                     }
                 } else if (i.customId === "leave") {
                     if (this.players.has(i.user.id)) {
-                        if (this.players.size < this.properties.minPlayers) {
+                        if (this.players.size == this.properties.minPlayers) {
                             bCollector.stop("not enough");
                             rCollector.stop();
                             await i.deferUpdate();
@@ -224,7 +224,7 @@ class Connect4Game extends Game {
 
             bCollector.on("end", async (c, r) => {
                 message.delete();
-                if (r == "cancelled" || r == "empty" || r == "not enough") {
+                if (r != "continue") {
                     reject(r);
                 } else {
                     this.mainEmbed.setTitle(
