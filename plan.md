@@ -18,13 +18,19 @@ TODO:
     - **Lose on timeout**
     - **More than 2 players**
     - QOL:
-        - Make lobby close if not enough players at any point (currently does not work in settings)
+        - **Make lobby close if not enough players at any point (currently does not work in settings)**
+        - Add stage timers
         - If time runs out, do not go to next stage and instead quit game
         - Delete input setting messages
         - Delete connect4 move messages
-    - Set emojis
+        - Keep timed out players in lobby, but cannot move.
+        - Quickstart button in loby
+
+    - **Set emojis**
     - Better win screen
     - Gamemodes (blind)
+    - Play again button
+    - Save Game Settings per channel
 - Set up mongodb
     - Create profile / stats
     - Stats for Connect4
