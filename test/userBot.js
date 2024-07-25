@@ -1,9 +1,14 @@
 const puppeteer = require("puppeteer");
 
 class UserBot {
+  /** id of the guild that this bot will run in*/
   guildId;
+  /** id of the channel that this bot will run in (can be changed)*/
   channelId;
+  /** userId of the userBot */
   userId;
+  /** name of your actual bot (to find the right bot to send slash command to)*/
+  botName;
   
   constructor() {}
 
@@ -120,7 +125,7 @@ class UserBot {
     await this.page.keyboard.press("Enter");
   }
 
-  async sendCommand(commandName, botName, guildId=this.guildId, channelId=this.channelId) {
+  async sendCommand(commandName, botName=this.botName, guildId=this.guildId, channelId=this.channelId) {
     console.log(guildId, channelId);
     if (this.page.url() != `https://discord.com/channels/${guildId}/${channelId}`) {
       await this.page.goto(`https://discord.com/channels/${guildId}/${channelId}`);

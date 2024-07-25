@@ -1,5 +1,4 @@
 require("module-alias-jest/register");
-const config = require("@config/config.json");
 const userBots = require("@config/userBots.json");
 const UserBot = require("@userBot");
 const { Client } = require("discord.js");
@@ -14,7 +13,7 @@ async function setup(client, BOT_COUNT) {
         });
     });
 
-    client.testGuild = await client.guilds.fetch(config["guildId"]);
+    client.testGuild = await client.guilds.fetch(process.env.TEST_GUILD_ID);
 
     let channels = await client.testGuild.channels.fetch();
 
@@ -32,7 +31,8 @@ async function setup(client, BOT_COUNT) {
         );
 
         bots[i].user = await client.testGuild.members.fetch(bots[i].userId);
-        bots[i].guildId = config["guildId"];
+        bots[i].guildId = process.env.TEST_GUILD_ID;
+        bots[i].botName = client.user.username;
     }
 
 

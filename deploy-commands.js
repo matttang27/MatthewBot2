@@ -1,12 +1,11 @@
 require("module-alias-jest/register");
 
 const { REST, Routes } = require("discord.js");
-const { clientId, token } = require("@config/config.json");
+const mode = process.env.NODE_ENV || 'testing'; // Default to 'testing' if not set
+require('dotenv').config({ path: `.env.${mode}` });
 const fs = require("node:fs");
 const path = require("node:path");
-
 const MatthewClient = require("@client");
-const config = require("@config/config.json");
 
 
 
@@ -39,7 +38,7 @@ async function deployCommands(client) {
     }
 
     // Construct and prepare an instance of the REST module
-    const rest = new REST().setToken(token);
+    const rest = new REST().setToken(process.env.BOT_TOKEN);
 
     try {
         await client.login();
@@ -55,7 +54,7 @@ async function deployCommands(client) {
             // The put method is used to fully refresh all commands in the guild with the current set
 
             const data = await rest.put(
-                Routes.applicationGuildCommands(clientId, guilds.at(i).id),
+                Routes.applicationGuildCommands(process.env.CLIENT_ID, guilds.at(i).id),
                 { body: commands }
             );
 
@@ -72,7 +71,7 @@ async function deployCommands(client) {
 }
 
 if (require.main === module) {
-	const client = new MatthewClient(config, true);
+	const client = new MatthewClient();
     client.login().then(() => deployCommands(client));
 } else {
 	module.exports = deployCommands;

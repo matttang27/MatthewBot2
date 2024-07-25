@@ -8,6 +8,10 @@
 
 TODO:
 
+- Host online
+    - **Set up google cloud compute**
+    - Split prod and testing (I should probably do this earlier)
+    - Automatically reload on github changes
 - Create jest tests for all current code
     - **figure out how to detect ephemeral responses (I don't think they appear in cache)**
     - **make username / password read from config**
@@ -34,7 +38,5 @@ TODO:
 - Set up mongodb
     - Create profile / stats
     - Stats for Connect4
-- Host online
-    - **Set up google cloud compute**
-    - Automatically reload on github changes
-    - Split prod and testing (I should probably do this earlier)
+
+    

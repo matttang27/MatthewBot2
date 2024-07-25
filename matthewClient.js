@@ -1,5 +1,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
+console.log(process.env.NODE_ENV)
+const mode = process.env.NODE_ENV || 'testing'; // Default to 'testing' if not set
+require('dotenv').config({ path: `.env.${mode}` });
 const { Client, Collection, Events, GatewayIntentBits, Message, Guild, TextChannel } = require('discord.js');
 
 class MatthewClient extends Client {
@@ -9,7 +12,7 @@ class MatthewClient extends Client {
     /** @type {Guild} */
     testGuild;
 
-    constructor(config, testing) {
+    constructor() {
         super({
             intents: [
                 GatewayIntentBits.Guilds, 
@@ -23,8 +26,6 @@ class MatthewClient extends Client {
         });
 
         this.commands = new Collection();
-        this.testing = testing;
-        this.config = config;
 
         this.setupCommands();
         this.setupEvents();
@@ -32,7 +33,7 @@ class MatthewClient extends Client {
         this.on("error", (e) => console.error(e));
         this.on("warn", (e) => console.warn(e));
 
-        if (!testing) {
+        if (mode == 'production') {
             this.on("debug", (e) => console.info(e));
         }
         
@@ -76,7 +77,8 @@ class MatthewClient extends Client {
     }
 
     async login() {
-        await super.login(this.config.token);
+        console.log(process.env.BOT_TOKEN)
+        await super.login(process.env.BOT_TOKEN);
     }
 
     /**

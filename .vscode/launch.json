@@ -22,9 +22,9 @@
             "runtimeExecutable": "nodemon",
             "console": "integratedTerminal",
             "restart": true,
-            "runtimeArgs": [
-                //"test"
-            ]
+            "env": {
+                "NODE_ENV": "testing"
+            },
         },
         {
             "type": "node",
