@@ -1,0 +1,12 @@
+{
+    "bots": [
+        {
+            "username": "user username here",
+            "password": "********"
+        },
+        {
+            "username": "user username here",
+            "password": "*********"
+        }
+    ]
+}

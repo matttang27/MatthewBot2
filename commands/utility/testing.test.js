@@ -1,8 +1,6 @@
 require('module-alias-jest/register')
 const MatthewClient = require('@client');
-const config = require('@config/config.json');
-const userBots = require('@config/userBots.json');
-const client = new MatthewClient(config,true);
+const client = new MatthewClient();
 
 const UserBot = require('@userBot');
 
@@ -22,7 +20,7 @@ afterAll(async () => {
 describe('testing command', () => {
   it('should reply with an ephemeral message', async () => {
 
-    await bots[0].sendCommand("testing", "MatthewBot2");
+    await bots[0].sendCommand("testing");
 
     let response = await client.waitForMessage({"embeds": [{"data": {"description":"ephemeral message"}}]})
     

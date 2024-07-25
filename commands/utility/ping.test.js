@@ -1,8 +1,6 @@
 require("module-alias-jest/register");
 const MatthewClient = require("@client");
-const config = require("@config/config.json");
-const userBots = require("@config/userBots.json");
-const client = new MatthewClient(config, true);
+const client = new MatthewClient();
 
 
 const UserBot = require("@userBot");
@@ -23,7 +21,7 @@ afterAll(async () => {
 
 describe("ping command", () => {
     it("should reply with Pong!", async () => {
-        await bots[0].sendCommand("ping", "MatthewBot2");
+        await bots[0].sendCommand("ping");
 
         let response = await client.waitForMessage({ content: "Pong!" });
         expect(response.content).toBe("Pong!");

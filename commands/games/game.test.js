@@ -2,9 +2,8 @@
 
 require("module-alias-jest/register");
 const MatthewClient = require("@client");
-const config = require("@config/config.json");
-const userBots = require("@config/userBots.json");
-const client = new MatthewClient(config, true);
+
+const client = new MatthewClient();
 
 const UserBot = require("@userBot");
 const { Message } = require("discord.js");
@@ -18,7 +17,7 @@ let response;
 
 const {setup, eachSetup} = require('@testSetup');
 beforeAll(async () => {
-  bots = await setup(client, 2)
+  bots = await setup(client, BOT_COUNT)
 }, 100_000);
 
 beforeEach(async () => {
@@ -29,7 +28,7 @@ beforeEach(async () => {
 
 describe("testgame command", () => {
     it("runs a normal game properly", async () => {
-        await bots[0].sendCommand("testgame", "MatthewBot2");
+        await bots[0].sendCommand("testgame");
 
         response = await client.waitForMessage({
             embeds: [{ data: { title: "game game created!  [1/4]" } }],
@@ -91,7 +90,7 @@ describe("testgame command", () => {
         
     }, 200_000);
     it("cancels the game when owner presses cancel in lobby", async () => {
-        await bots[0].sendCommand("testgame", "MatthewBot2");
+        await bots[0].sendCommand("testgame");
 
         response = await client.waitForMessage({
             embeds: [{ data: { title: "game game created!  [1/4]" } }],
@@ -112,7 +111,7 @@ describe("testgame command", () => {
         });
     });
     it("cancels the game when owner presses Cancel Game in options", async () => {
-        await bots[0].sendCommand("testgame", "MatthewBot2");
+        await bots[0].sendCommand("testgame");
 
         response = await client.waitForMessage({
             embeds: [{ data: { title: "game game created!  [1/4]" } }],
@@ -160,7 +159,7 @@ describe("testgame command", () => {
         });
     });
     it("cancels the game if everyone leaves", async () => {
-        await bots[0].sendCommand("testgame", "MatthewBot2");
+        await bots[0].sendCommand("testgame");
 
         response = await client.waitForMessage({
             embeds: [{ data: { title: "game game created!  [1/4]" } }],
@@ -174,7 +173,7 @@ describe("testgame command", () => {
         });
     }, 100_000);
     it("sends an ephemeral message if non-owner presses start / cancel", async () => {
-        await bots[0].sendCommand("testgame", "MatthewBot2");
+        await bots[0].sendCommand("testgame");
 
         response = await client.waitForMessage({
             embeds: [{ data: { title: "game game created!  [1/4]" } }],
@@ -223,7 +222,7 @@ describe("testgame command", () => {
     }, 100_000);
 
     it("ignores non-owner when inputting settings", async () => {
-        await bots[0].sendCommand("testgame", "MatthewBot2");
+        await bots[0].sendCommand("testgame");
 
         response = await client.waitForMessage({
             embeds: [{ data: { title: "game game created!  [1/4]" } }],
@@ -271,7 +270,7 @@ describe("testgame command", () => {
 
     })
     it("sends an ephemeral message if not enough players to start", async () => {
-        await bots[0].sendCommand("testgame", "MatthewBot2");
+        await bots[0].sendCommand("testgame");
 
         response = await client.waitForMessage({
             embeds: [{ data: { title: "game game created!  [1/4]" } }],
@@ -287,7 +286,7 @@ describe("testgame command", () => {
     }, 100_000);
 
     it("automatically starts the game if the lobby timer runs out", async () => {
-        await bots[0].sendCommand("testgame", "MatthewBot2");
+        await bots[0].sendCommand("testgame");
 
         response = await client.waitForMessage({
             embeds: [{ data: { title: "game game created!  [1/4]" } }],

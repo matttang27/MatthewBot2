@@ -1,7 +1,5 @@
 const { Events, InteractionType } = require("discord.js");
-
-const dotenv = require("dotenv");
-dotenv.config();
+const deployCommands = require("@root/deploy-commands.js")
 
 module.exports = {
   name: Events.ClientReady,
@@ -9,7 +7,7 @@ module.exports = {
   async execute(client) {
 
     console.log(`Ready! Logged in as ${client.user.tag}`);
-    
+    deployCommands(client);
     
     
   },
