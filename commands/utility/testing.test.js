@@ -2,8 +2,6 @@ require('module-alias-jest/register')
 const MatthewClient = require('@client');
 const client = new MatthewClient();
 
-const UserBot = require('@userBot');
-
 const {setup, eachSetup} = require('@testSetup');
 beforeAll(async () => {
   bots = await setup(client, 1)

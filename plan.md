@@ -32,6 +32,7 @@ TODO:
         - Delete connect4 move messages
         - Keep timed out players in lobby, but cannot move.
         - Quickstart button in lobby
+        - Not enough players error should show minimum players
 
     - **Set emojis**
     - Better win screen

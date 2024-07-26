@@ -145,6 +145,7 @@ class Game {
             }
         }
         this.mainEmbed.setDescription(playerString);
+        
 
         await this.response.edit({embeds: [this.mainEmbed]});
 
@@ -155,11 +156,10 @@ class Game {
      */
     async lobby() {
         return new Promise(async (resolve, reject) => {
-            const START_TITLE = `${this.properties.gameName} game created! `;
 
             this.mainEmbed = new EmbedBuilder()
                 .setColor("Green")
-                .setTitle(START_TITLE)
+                .setTitle(`${this.properties.gameName} game created! [${this.players.size}/${this.properties.maxPlayers}]`)
 
             this.updateLobby();
 
@@ -226,6 +226,8 @@ class Game {
                         } else {
                             this.players.delete(i.user.id);
 
+                            this.mainEmbed.setTitle(`${this.properties.gameName} game created! [${this.players.size}/${this.properties.maxPlayers}]`)
+
                             this.updateLobby();
                             
                         }
@@ -239,6 +241,7 @@ class Game {
 
                             this.players.set(i.user.id, {user: i.user, stats: {}, other: {}});
 
+                            this.mainEmbed.setTitle(`${this.properties.gameName} game created! [${this.players.size}/${this.properties.maxPlayers}]`)
                             this.updateLobby();
                             
                         }
@@ -407,7 +410,7 @@ class Game {
                     oSelected = this.options[parseInt(m.content) - 1];
 
                     const valueEmbed = new EmbedBuilder()
-                        .setTitle(`Editing ${oSelected.name}`)
+                        .setTitle(`Editing ${oSelected.label}`)
                         .setDescription(oSelected.desc);
 
                     await message.edit({ embeds: [valueEmbed] });
@@ -424,7 +427,7 @@ class Game {
                     settingsEmbed.setDescription(
                         `${this.options
                             .map((option, index) => {
-                                return `${index + 1}. ${option.name} - **${
+                                return `${index + 1}. ${option.label} - **${
                                     this.currentOptions[option.name]
                                 }**`;
                             })

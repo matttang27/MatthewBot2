@@ -15,30 +15,32 @@ let bots = [];
 /** @type {Message} */
 let response;
 
-const {setup, eachSetup} = require('@testSetup');
+const { setup, eachSetup } = require("@testSetup");
 beforeAll(async () => {
-  bots = await setup(client, BOT_COUNT)
+    bots = await setup(client, BOT_COUNT);
 }, 100_000);
 
 beforeEach(async () => {
-  await eachSetup(client,bots);
+    await eachSetup(client, bots);
 });
 
-
+afterAll(async () => {
+    bots.forEach((bot) => bot.browser.close());
+});
 
 describe("testgame command", () => {
     it("runs a normal game properly", async () => {
         await bots[0].sendCommand("testgame");
 
         response = await client.waitForMessage({
-            embeds: [{ data: { title: "game game created!  [1/4]" } }],
+            embeds: [{ data: { title: "game game created! [1/4]" } }],
             components: [{ components: [{}, {}, {}] }],
         });
 
         await bots[1].clickButton("Join / Leave", response);
 
         response = await client.waitForMessage({
-            embeds: [{ data: { title: "game game created!  [2/4]" } }],
+            embeds: [{ data: { title: "game game created! [2/4]" } }],
             components: true,
         });
 
@@ -50,15 +52,13 @@ describe("testgame command", () => {
         });
 
         expect(
-            response.embeds
-                .at(0)
-                .data.description.includes("example - **5**")
+            response.embeds.at(0).data.description.includes("Example setting - **5**")
         ).toBeTruthy();
 
         await bots[0].sendMessage("1");
 
         response = await client.waitForMessage({
-            embeds: [{ data: { title: "Editing example" } }],
+            embeds: [{ data: { title: "Editing Example setting" } }],
             components: true,
         });
 
@@ -70,9 +70,7 @@ describe("testgame command", () => {
         });
 
         expect(
-            response.embeds
-                .at(0)
-                .data.description.includes("example - **7**")
+            response.embeds.at(0).data.description.includes("Example setting - **7**")
         ).toBeTruthy();
 
         await bots[0].clickButton("Continue", response);
@@ -81,13 +79,12 @@ describe("testgame command", () => {
             embeds: [{ data: { title: "We have a winner!" } }],
             components: true,
         });
-        
+
         expect(
             response.embeds
                 .at(0)
                 .data.description.includes(`<@${bots[0].userId}>`)
         ).toBeTruthy();
-        
     }, 200_000);
     it("cancels the game when owner presses cancel in lobby", async () => {
         await bots[0].sendCommand("testgame");
@@ -262,13 +259,9 @@ describe("testgame command", () => {
         });
 
         expect(
-            response.embeds
-                .at(0)
-                .data.description.includes("example - **7**")
+            response.embeds.at(0).data.description.includes("example - **7**")
         ).toBeTruthy();
-
-
-    })
+    });
     it("sends an ephemeral message if not enough players to start", async () => {
         await bots[0].sendCommand("testgame");
 
@@ -299,7 +292,6 @@ describe("testgame command", () => {
             embeds: [{ data: { title: "game game created!  [2/4]" } }],
             components: true,
         });
-
 
         response = await client.waitForMessage({
             timeLimit: 125_000,

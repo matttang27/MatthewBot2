@@ -1,7 +1,15 @@
 require("module-alias-jest/register");
 const userBots = require("@config/userBots.json");
+const MatthewClient = require("@root/matthewClient");
 const UserBot = require("@userBot");
 const { Client } = require("discord.js");
+
+/**
+ * 
+ * @param {MatthewClient} client 
+ * @param {Number} BOT_COUNT 
+ * @returns {UserBot[]}
+ */
 async function setup(client, BOT_COUNT) {
     client.login();
 
