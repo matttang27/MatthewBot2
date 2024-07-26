@@ -23,7 +23,7 @@
             "console": "integratedTerminal",
             "restart": true,
             "env": {
-                "NODE_ENV": "testing"
+                "NODE_ENV": "test"
             },
         },
         {

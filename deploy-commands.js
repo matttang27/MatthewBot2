@@ -1,8 +1,6 @@
 require("module-alias-jest/register");
 
 const { REST, Routes } = require("discord.js");
-const mode = process.env.NODE_ENV || 'testing'; // Default to 'testing' if not set
-require('dotenv').config({ path: `.env.${mode}` });
 const fs = require("node:fs");
 const path = require("node:path");
 const MatthewClient = require("@client");

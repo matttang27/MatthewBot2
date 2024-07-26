@@ -1,7 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
-console.log(process.env.NODE_ENV)
-const mode = process.env.NODE_ENV || 'testing'; // Default to 'testing' if not set
+const mode = process.env.NODE_ENV || 'test'; // Default to 'test' if not set
 require('dotenv').config({ path: `.env.${mode}` });
 const { Client, Collection, Events, GatewayIntentBits, Message, Guild, TextChannel } = require('discord.js');
 
@@ -103,6 +102,7 @@ class MatthewClient extends Client {
      * @param {Object[] | true} options.embeds
      * @param {Number | true} options.timeLimit
      * @param {Number | true} options.channelId
+     * @param {Number | true} options.userId
      * @returns {Message}
      */
     async waitForMessage({
@@ -121,7 +121,7 @@ class MatthewClient extends Client {
             const timeout = setTimeout(() => {
                 client.off(Events.MessageCreate,createdFunc);
                 client.off(Events.MessageUpdate,updateFunc);
-                reject(new Error(`Time limit reached`));
+                reject(new Error(`Time limit reached: ${JSON.stringify({ content, embeds, components, userId, timeLimit, channelId }, null, 2)}`));
             }, timeLimit);
     
             /**
