@@ -8,13 +8,21 @@ MatthewBot2 will be a discord bot that connects people and servers from around t
 
 ## Features
 
-Right now, it's pretty barren with only one game (connect4), but in the future, aligning with my goal, I'd like to implement
+Right now, it's pretty barren with only one game (connect4)
+
+![image](https://github.com/user-attachments/assets/75d99c0b-3097-492a-8033-56958807b18d)
+*I might need to change my buttons - my friends kept pressing the Start button to try and join the lobby*
+
+In the future, aligning with my goal, I'd like to implement
 - **Online matchmaking where you can chat with your opponent** and maybe make a new friend
 - **Server vs Server battles where members vote on their server's move** (or a bunch of individual matches)
 
 ## Development
 
 Progress is kinda slow even though I've been working on it a lot recently. I've been trying to code more "professionally", by making my code more organized and writing (some) documentation.
+
+![image](https://github.com/user-attachments/assets/32f27ff3-87b0-423a-81b3-1c3e6089adb1)
+
 The main reason is the test suite, which I spent like 3 weeks figuring out a way to test the bot. Honestly, I think it's a pretty good solution (I am so proud of my waitForMessage function).
 
 Also, I finally used a cloud service to host the bot 😎. MatthewBot was kept alive using a repl.it loophole, and I don't wanna talk about it
