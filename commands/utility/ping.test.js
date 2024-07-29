@@ -20,7 +20,7 @@ afterAll(async () => {
 });
 
 describe("ping command", () => {
-    it("should reply with Pong!", async () => {
+    it("should reply with Pong", async () => {
         await bots[0].sendCommand("ping");
 
         let response = await client.waitForMessage({ content: "Pong!" });

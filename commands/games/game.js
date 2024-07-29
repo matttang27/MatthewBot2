@@ -198,7 +198,7 @@ class Game {
                     if (i.user.id == this.players.at(0).user.id) {
                         if (this.players.size < this.properties.minPlayers) {
                             await i.reply(
-                                errorEmbed("Not enough players to start.")
+                                errorEmbed(`Not enough players to start. (Minimum ${this.properties.minPlayers} players)`)
                             );
                         } else {
                             await i.deferUpdate();

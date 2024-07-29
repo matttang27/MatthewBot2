@@ -17,7 +17,8 @@ TODO:
     - **figure out how to detect ephemeral responses (I don't think they appear in cache)**
     - **make username / password read from config**
     - **make seeing client output results simpler**
-    - split actions table
+    - **split actions table**
+    - **create a waitForNextMessage that accepts any message**
     - create extensive game.test.js for Lobby & Options
     - create an extensive connect4.test.js for connect4 specific actions
 - Complete Connect4game
@@ -32,7 +33,8 @@ TODO:
         - Delete connect4 move messages
         - Keep timed out players in lobby, but cannot move.
         - Quickstart button in lobby
-        - Not enough players error should show minimum players
+        - **Not enough players error should show minimum players**
+        - Make buttons more clearer (instead of Join / Leave, have a green Join button and a Start (For Owner) button)
 
     - **Set emojis**
     - Better win screen

@@ -92,8 +92,8 @@ class MatthewClient extends Client {
      * 
      * // Buttons Example: One action row with 2 buttons label "Start" and "End", and customId "start-button"
      * components: [{ components: 
-     *   [{data: { label: "Start", customId: "start-button"}}]
-     *   [{data: { label: "End"}}] }]
+     *   [{data: { label: "Start", customId: "start-button"}},
+     *   {data: { label: "End"}}]
      *  }]
      * 
      * @see {@link https://discord.js.org/docs/packages/discord.js/14.15.3/Message:Class} for the structure of embeds and components
@@ -103,7 +103,13 @@ class MatthewClient extends Client {
      * @param {Number | true} options.timeLimit
      * @param {Number | true} options.channelId
      * @param {Number | true} options.userId
-     * @returns {Message}
+     * @default "" | options.content
+     * [] | options.embeds
+     * [] | options.components
+     * this.user.id | options.userId
+     * 5000 | options.timeLimit
+     * this.testChannel.id | options.channelId
+     * @returns {Message | Message[]} either the found message or the array of messages checked.
      */
     async waitForMessage({
         content = "",
@@ -118,10 +124,13 @@ class MatthewClient extends Client {
         let client = this;
         
         return await new Promise((resolve, reject) => {
+            let checkedMessages = []
+
             const timeout = setTimeout(() => {
                 client.off(Events.MessageCreate,createdFunc);
                 client.off(Events.MessageUpdate,updateFunc);
-                reject(new Error(`Time limit reached: ${JSON.stringify({ content, embeds, components, userId, timeLimit, channelId }, null, 2)}`));
+                console.dir(checkedMessages, {depth: null})
+                reject(new Error(`Message was not found within the timeLimit ${JSON.stringify({ content, embeds, components, userId, timeLimit, channelId }, null, 2)}`));
             }, timeLimit);
     
             /**
@@ -129,9 +138,10 @@ class MatthewClient extends Client {
              * @param {Message} message 
              */
             let createdFunc = (message) => {
-                if (message.author.id == userId && 
+                checkedMessages.push(message);
+                if ((userId === true || message.author.id == userId) && 
                     (content === true || message.content == content) &&
-                    (channelId === true || message.channel.id) &&
+                    (channelId === true || message.channel.id == channelId) &&
                     (embeds === true || this.matchesSimplifiedProperties(message.embeds,embeds)) && 
                     (components === true || this.matchesSimplifiedProperties(message.components,components))
                 ) {
@@ -146,6 +156,15 @@ class MatthewClient extends Client {
             client.on(Events.MessageCreate, createdFunc);
             client.on(Events.MessageUpdate, updateFunc);
         });
+    }
+
+    /**
+     * Waits for the next message in the testChannel. 
+     * This should be used in tests, where you are testing for a specific interaction and assume everything else works.
+     * @returns {Message}
+     */
+    async waitForNextMessage() {
+        return this.waitForMessage({content: true, embeds: true, components: true, userId: true})
     }
 
     /**

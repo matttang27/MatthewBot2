@@ -1,0 +1,5 @@
+{
+    "jest.jestCommandLine": "jest --runInBand",
+    //"jest.jestCommandLine": "./node_modules/jest/bin/jest.js --runInBand",
+    "jest.rootPath": "."
+}
