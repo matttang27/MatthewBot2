@@ -81,6 +81,7 @@ class MatthewClient extends Client {
     }
 
     /**
+     * @deprecated
      * @description For testing purposes: returns a Promise for a specific messageCreate or messageUpdate to be emitted.
      * Options have default values, and can be set to true to accept any value.
      * @example
@@ -159,6 +160,59 @@ class MatthewClient extends Client {
     }
 
     /**
+     * General purpose function that returns a promise that waits for a certain event & properties to be emitted in the client.
+     * @example
+     * waitForEvent(Events.GuildCreate, (g) => {g}, {"name": "MatthewTest"}, 5000)
+     * //waits for the bot to be added to a guild in the next 5 seconds
+     * @param {Events} event the type of Client Event to wait for
+     * @param {Function} function the function to apply to the event (for example, MessageUpdate should only grab newMessage)
+     * @param {Object} object the simplified object to compare with the actual object. An empty object accepts any object.
+     * @param {Number} timeLimit the amount of milliseconds to wait for
+     * @returns {Promise<Object|Error>} returns a Promise that either resolves the found object or rejects an Error.
+     */
+    async waitForEvent(event,func,mockObject,timeLimit) {
+        //needed because 'this' in the promise is a different scope
+        let client = this;
+        let checkedObjects = []
+        Error.captureStackTrace(checkedObjects);
+        
+        return await new Promise((resolve, reject) => {
+            
+    
+            /**
+             * 
+             * @param {Message} message 
+             */
+            let checker = (...args) => {
+                let object = func(...args)
+
+                
+                
+                let result = this.matchesSimplifiedProperties(object,mockObject)
+                if (result === true) {
+                    client.off(event,checker);
+                    clearTimeout(timeout)
+                    resolve(object);
+                } else {
+                    checkedObjects.push({"result": result, "object": object});
+                }
+            }
+
+            const timeout = setTimeout(() => {
+                client.off(event,checker);
+                //maybe print out differences between checkedObjects and mockObject
+                console.dir(checkedObjects, {depth: null})
+                const error = new Error(`Matching event was not found within the timeLimit for ${JSON.stringify(mockObject, null, 2)}`);
+                console.error(checkedObjects.stack);
+                reject(error);
+            }, timeLimit);
+
+            client.on(event, checker);
+        });
+    }
+
+    /**
+     * @deprecated
      * Waits for the next message in the testChannel. 
      * This should be used in tests, where you are testing for a specific interaction and assume everything else works.
      * @returns {Message}
@@ -168,22 +222,59 @@ class MatthewClient extends Client {
     }
 
     /**
+     * Takes in a mock of a message, then applies changes based on input
+     * If mockMessage === true instead of an object, allow any message to be sent (with default author, guild and channel)
+     * Else if base == true, set content, embeds, components, author, guild, channel to default values if not set.
+     * Else no changes made
+     * @param {Object} mockMessage
+     * @param {Boolean} base
+     * @returns {Object}
+     */
+    editMockMessage(mockMessage,base) {
+        const DEFAULTS = {
+            "content": "",
+            "components": [],
+            "embeds": [],
+            "author": {id: this.user.id},
+            "guildId": this.testGuild.id,
+            "channelId": this.testChannel.id
+        }
+        if (mockMessage === true) { 
+            mockMessage = {author: DEFAULTS["author"], guildId: DEFAULTS["guildId"], channelId: DEFAULTS["channelId"]}
+        }
+        else if (base) {
+            
+            for (var key in DEFAULTS) {
+                if (! mockMessage[key]) {
+                    mockMessage[key] = DEFAULTS[key]
+                }
+            }
+        }
+        return mockMessage
+    }
+    async waitForMessageCreate(mockObject,base=false,timeLimit=5000) {
+        return this.waitForEvent(Events.MessageCreate,(m) => m, this.editMockMessage(mockObject,base), timeLimit);
+    }
+    async waitForMessageUpdate(mockObject,base=false,timeLimit=5000) {
+        return this.waitForEvent(Events.MessageUpdate,(oM,nM) => nM, this.editMockMessage(mockObject,base), timeLimit)
+    }
+    async waitForMessageDelete(mockObject,base=false,timeLimit=5000) {
+        return this.waitForEvent(Events.MessageDelete,(m) => m, this.editMockMessage(mockObject,base), timeLimit)
+    }
+    
+
+    /**
      * Compares a real object to a simplified version (ex. for embeds or components).
      * Returns true if every property in the simplified version is identical in the real object.
      * @param {Object} real 
      * @param {Object} mock
+     * @returns {string | true} the property that doesn't match / exist
      */
     matchesSimplifiedProperties(real,mock) {
         for (let key in mock) {
-            if (!real.hasOwnProperty(key)) return false;
-            /*
-            if (mock[key].constructor == Array) {
-                if (real[key].constructor != Array || real[key].length != mock[key].length) return false;
-                for (i=0;i<real[key].length;i++) {
-                    if (! this.matchesSimplifiedProperties(real[key][i],mock[key][i])) return false;
-                }*/
+            if (!real.hasOwnProperty(key)) return `${key} does not exist`;
             if (typeof real[key] == "object") {
-                if (! this.matchesSimplifiedProperties(real[key], mock[key])) return false;
+                if (this.matchesSimplifiedProperties(real[key], mock[key]) !== true) return `${key} different: real: ${real[key]} mock: ${mock[key]}`;
             } else {
                 if (real[key] != mock[key]) return false;
             }
