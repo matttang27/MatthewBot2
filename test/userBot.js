@@ -1,11 +1,14 @@
+const { Message, SnowflakeUtil, Snowflake } = require("discord.js");
 const puppeteer = require("puppeteer");
-
+const { DiscordSnowflake } = require('@sapphire/snowflake');
 class UserBot {
   /** id of the guild that this bot will run in*/
   guildId;
   /** id of the channel that this bot will run in (can be changed)*/
   channelId;
-  /** userId of the userBot */
+  /** userId of the userBot 
+   * @type {string}
+  */
   userId;
   /** name of your actual bot (to find the right bot to send slash command to)*/
   botName;
@@ -20,22 +23,31 @@ class UserBot {
   }
 
   async getUserID() {
-    await this.findAndClick('[aria-label="Set Status"]');
-
+    //check if Status is already open (and User ID button is available)
     let id = await this.page.evaluate(() => {
       let textElement = [...document.querySelectorAll("*")].find((element) =>
         element.textContent == ("Copy User ID")
       );
-      if (textElement) {
-        return textElement.children[0].id
-      }
-      return null;
-      
-      
+      return textElement?.children[0].id
     });
 
+    if (id === undefined) {
+      await this.findAndClick('[aria-label="Set Status"]');
+
+      id = await this.page.evaluate(() => {
+        let textElement = [...document.querySelectorAll("*")].find((element) =>
+          element.textContent == ("Copy User ID")
+        );
+        if (textElement) {
+          return textElement.children[0].id
+        }
+        return null;
+      });
+    }
+
     if (id) {
-      return parseInt(id.match(/\d/g).join(""));
+
+      return id.replace(/\D/g, "");
     }
     return null;
 
@@ -68,32 +80,51 @@ class UserBot {
 
   }
 
-  async login(username, password) {
-    this.browser = await puppeteer.launch({ headless: false });
-    this.page = await this.browser.newPage();
+  async login(username, password, endpoint) {
+    if (endpoint === undefined) {
+      throw new Error("Please run puppeteerRunner.js before running any tests.")
+    }
     
-    const context = this.browser.defaultBrowserContext();
-    await context.overridePermissions("https://discord.com", [
-      "clipboard-read",
-    ]);
+    try {
+      this.browser = await puppeteer.connect({ browserWSEndpoint: endpoint });
+    }
+    catch (err) {
+      console.log("ERROR")
+      throw new Error("Endpoint did not work. Run puppeteerRunner.js");
+    }
 
-    await this.page.goto("https://discord.com/login");
-    // Wait for the email input to be visible
-    await this.page.waitForSelector('input[name="email"]');
+    let [page] = await this.browser.pages();
+    this.page = page;
 
-    // Type in the email
-    await this.page.type('input[name="email"]', username); // replace with your email
+    if (page.url() == "about:blank" || page.url() == "https://discord.com/login") {
+    
+      const context = this.browser.defaultBrowserContext();
+      await context.overridePermissions("https://discord.com", [
+        "clipboard-read",
+      ]);
 
-    // Type in the password
-    await this.page.type('input[name="password"]', password); // replace with your password
+      await this.page.goto("https://discord.com/login");
+      // Wait for the email input to be visible
+      await this.page.waitForSelector('input[name="email"]');
 
-    // Click the login button
-    await this.page.click('button[type="submit"]');
+      // Type in the email
+      await this.page.type('input[name="email"]', username); // replace with your email
 
-    await this.page.waitForFunction(
-      'window.location.href === "https://discord.com/channels/@me"',
-      { timeout: 0 } // Set timeout to 0 to wait indefinitely
-    );
+      // Type in the password
+      await this.page.type('input[name="password"]', password); // replace with your password
+
+      // Click the login button
+      await this.page.click('button[type="submit"]');
+
+      await this.page.waitForFunction(
+        'window.location.href === "https://discord.com/channels/@me"',
+        { timeout: 0 } // Set timeout to 0 to wait indefinitely
+      );
+    }
+
+    if (this.page.url() != `https://discord.com/channels/@me`) {
+      await this.page.goto(`https://discord.com/channels/@me`);
+    }
 
     let userId = await this.getUserID();
     if (!userId) {
@@ -155,14 +186,18 @@ class UserBot {
 
   }
 
-  async clickButton(buttonName, message ,guildId=this.guildId, channelId=this.channelId) {
+  /**
+   * @param {stirng} buttonName 
+   * @param {Message} message 
+   * @returns 
+   */
+  async clickButton(buttonName, message) {
     //find what "row" the button is on (embeds count as rows too)
 
 
     
-    console.log(guildId, channelId);
-    if (this.page.url() != `https://discord.com/channels/${guildId}/${channelId}`) {
-      await this.page.goto(`https://discord.com/channels/${guildId}/${channelId}`);
+    if (this.page.url() != `https://discord.com/channels/${message.guild.id}/${message.channel.id}`) {
+      await this.page.goto(`https://discord.com/channels/${message.guild.id}/${message.channel.id}`);
     }
     
     await this.page.waitForSelector(`[id="message-accessories-${message.id}"]`)

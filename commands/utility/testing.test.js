@@ -11,9 +11,7 @@ beforeEach(async () => {
   await eachSetup(client,bots);
 });
 
-afterAll(async () => {
-  bots.forEach(bot => bot.browser.close())
-})
+
 
 describe('testing command', () => {
   it('should reply with an ephemeral message', async () => {

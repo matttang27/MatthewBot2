@@ -15,9 +15,7 @@ beforeEach(async () => {
   await eachSetup(client,bots);
 });
 
-afterAll(async () => {
-    bots.forEach((bot) => bot.browser.close());
-});
+
 
 describe("ping command", () => {
     it("should reply with Pong", async () => {

@@ -12,9 +12,7 @@ beforeEach(async () => {
   await eachSetup(client,bots);
 });
 
-afterAll(async () => {
-  bots.forEach(bot => bot.browser.close())
-})
+
 
 describe("mocktest command", () => {
     it("command interaction, button, and message should work", async () => {

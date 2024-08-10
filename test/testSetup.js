@@ -26,7 +26,7 @@ async function setup(client, BOT_COUNT) {
     let channels = await client.testGuild.channels.fetch();
 
     for (var channel of channels) {
-        if (channel[1].name == "testing-channel") await channel[1].delete();
+        if (channel[1].name.startsWith("tz")) await channel[1].delete();
     }
 
     bots = [];
@@ -35,7 +35,8 @@ async function setup(client, BOT_COUNT) {
         bots.push(new UserBot());
         await bots[i].login(
             userBots["bots"][i]["username"],
-            userBots["bots"][i]["password"]
+            userBots["bots"][i]["password"],
+            userBots["bots"][i]["endpoint"]
         );
 
         bots[i].user = await client.testGuild.members.fetch(bots[i].userId);
@@ -55,11 +56,9 @@ async function setup(client, BOT_COUNT) {
  */
 async function eachSetup(client,bots) {
     client.testChannel = await client.testGuild.channels.create({
-        name: "testing-channel",
+        name: "tz ".concat(expect.getState().currentTestName).slice(0,100),
     });
     
     bots.forEach(bot => bot.channelId = client.testChannel.id)
-  
-    await bots[0].sendMessage(expect.getState().currentTestName);
 }
 module.exports = {setup, eachSetup};
