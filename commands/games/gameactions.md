@@ -23,10 +23,9 @@ Bolded Actions have tests completed
 |             | Other Click Leave      | Less than minimum players        | Game cancelled due to not enough players.                 |
 |             |                        |                                  | Options message deleted                                   |
 |             |                        | Still enough players             | Lobby Updates                                             |
-|             |                        |                                  | Options message contains new owner                        |
 |             | Owner Click Continue   |                                  | Delete message, transition to emojis stage                |
 |             | Other Click Continue   |                                  | Error: "Not owner of this lobby"                          |
-|             | Owner Click Cancel     |                                  | Lobby closed, game not started                            |
+|             | Owner Click Cancel     |                                  | Lobby closed, option message deleted                      |
 |             | Other Click Cancel     |                                  | Error: "Not owner of this lobby"                          |
 |             | Owner Types Value      | No option selected + valid value | Owner message deleted, message edited to show option      |
 |             |                        | Option selected + valid value    | Owner message deleted, message edited back to option list |

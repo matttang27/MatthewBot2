@@ -12,7 +12,6 @@
 
 TODO:
 
-
 - Create jest tests for all current code
     - **figure out how to detect ephemeral responses (I don't think they appear in cache)**
     - **make username / password read from config**
@@ -45,4 +44,6 @@ TODO:
     - Create profile / stats
     - Stats for Connect4
 
-    
+Maybe TODO:
+- Make mainEmbed title be set automatically when a new stage arrives. 
+- Make emoji selection part of GameManager so it can be applied to other games

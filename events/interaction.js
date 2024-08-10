@@ -1,22 +1,22 @@
-const { Events } = require('discord.js');
+const { Events, ComponentType, BaseInteraction } = require('discord.js');
 
 const fs = require('fs');
 
 module.exports = {
     name: Events.InteractionCreate,
+    /**
+     * 
+     * @param {BaseInteraction} interaction 
+     * @returns 
+     */
     async execute(interaction) {
-        console.log(interaction.componentType, interaction.user.id)
-
-        if (interaction.user.id === false || interaction.user.id === true) {
-            console.log("NOT WORKING")
-        }
+        if (interaction.isButton()) {
+            console.log(interaction.component.label, interaction.message.id, interaction.user.username)
+        };
+        
         if (!interaction.isChatInputCommand()) return;
 
-
-       /*let jsonString = JSON.stringify(this, (key, value) =>
-        typeof value === 'bigint'
-            ? value.toString()
-            : value) // return everything else unchanged*/
+        console.log(interaction.commandName, interaction.user.username)
 
         const command = interaction.client.commands.get(interaction.commandName);
 

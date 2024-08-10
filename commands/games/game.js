@@ -252,14 +252,16 @@ class Game {
             collector.once("end", async (collected, reason) => {
                 if (reason == "cancelled" || reason == "empty") {
                     reject(reason);
+                    return;
                 }
 
                 if (this.players.size < this.properties.minPlayers) {
                     reject("not enough");
+                    return;
                 }
 
                 this.mainEmbed.setTitle(
-                    `${this.properties.gameName} game: configuring...`
+                    `${this.properties.gameName} game configuring...`
                 );
                 this.response.edit({
                     embeds: [this.mainEmbed],
@@ -377,6 +379,25 @@ class Game {
                             this.players.delete(i.user.id);
                             this.updateLobby();
 
+                            if (optionSelecting) {
+                                settingsEmbed.setDescription(
+                                    `${this.options
+                                        .map((option, index) => {
+                                            return `${index + 1}. ${option.label} - **${
+                                                this.currentOptions[option.name]
+                                            }**`;
+                                        })
+                                        .join("\n")}\n\n${this.players.at(
+                                        0
+                                    ).user}, change settings by typing the option number`
+                                );
+                                await message.edit({
+                                    embeds: [settingsEmbed],
+                                });
+                            }
+
+                            
+
                             await i.reply(successEmbed("You have left the lobby!"));
                         }
                     } else {
@@ -391,9 +412,9 @@ class Game {
                     reject(r);
                 } else {
                     this.mainEmbed.setTitle(
-                        `${this.properties.gameName} game ongoing!`
+                        `${this.properties.gameName} game setting up...`
                     );
-                    this.response.edit({
+                    await this.response.edit({
                         embeds: [this.mainEmbed],
                         components: [],
                     });
@@ -449,6 +470,13 @@ class Game {
     }
 
     async setup() {
+        this.mainEmbed.setTitle(
+            `${this.properties.gameName} game setting up...`
+        );
+        this.response.edit({
+            embeds: [this.mainEmbed],
+            components: [],
+        });
         return;
     }
     /**
