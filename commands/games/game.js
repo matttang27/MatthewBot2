@@ -376,6 +376,8 @@ class Game {
                             oCollector.stop();
                             await i.deferUpdate();
                         } else {
+                            await i.reply(successEmbed("You have left the lobby!"));
+                            
                             this.players.delete(i.user.id);
                             this.updateLobby();
 
@@ -398,7 +400,7 @@ class Game {
 
                             
 
-                            await i.reply(successEmbed("You have left the lobby!"));
+                            
                         }
                     } else {
                         await i.reply(errorEmbed("You are not in this lobby!"));
@@ -428,6 +430,7 @@ class Game {
                     parseInt(m.content) >= 1 &&
                     parseInt(m.content) <= this.options.length
                 ) {
+                    await m.delete();
                     oSelected = this.options[parseInt(m.content) - 1];
 
                     const valueEmbed = new EmbedBuilder()
@@ -460,11 +463,6 @@ class Game {
 
                     optionSelecting = true;
                 }
-            });
-
-            oCollector.on("end", async (c, r) => {
-                message.delete();
-                
             });
         });
     }

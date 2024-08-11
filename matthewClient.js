@@ -203,6 +203,7 @@ class MatthewClient extends Client {
                 //maybe print out differences between checkedObjects and mockObject
                 console.dir(checkedObjects, {depth: null})
                 const error = new Error(`Matching event was not found within the timeLimit for ${JSON.stringify(mockObject, null, 2)}`);
+                console.error(error);
                 console.error(checkedObjects.stack);
                 reject(error);
             }, timeLimit);

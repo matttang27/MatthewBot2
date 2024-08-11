@@ -288,7 +288,9 @@ class Connect4Game extends Game {
                         time: this.currentOptions.timeLimit * 1000,
                         errors: ["time"],
                     })
-                    .then((collected) => {
+                    .then(async (collected) => {
+                        await collected.first().delete();
+                        
                         let move = parseInt(collected.first().content) - 1;
 
                         for (
