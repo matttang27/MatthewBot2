@@ -38,10 +38,7 @@ class UserBot {
         let textElement = [...document.querySelectorAll("*")].find((element) =>
           element.textContent == ("Copy User ID")
         );
-        if (textElement) {
-          return textElement.children[0].id
-        }
-        return null;
+        return textElement?.children[0].id
       });
     }
 
@@ -80,7 +77,7 @@ class UserBot {
 
   }
 
-  async login(username, password, endpoint) {
+  async login(username, password, id, endpoint) {
     if (endpoint === undefined) {
       throw new Error("Please run puppeteerRunner.js before running any tests.")
     }
@@ -126,18 +123,19 @@ class UserBot {
       await this.page.goto(`https://discord.com/channels/@me`);
     }
 
-    let userId = await this.getUserID();
-    if (!userId) {
-      await this.enableDeveloperMode();
-      userId = await this.getUserID();
+    if (id === undefined) {
+      let userId = await this.getUserID();
+      if (!userId) {
+        await this.enableDeveloperMode();
+        userId = await this.getUserID();
+      }
+      this.userId = userId;
+      
+    } else {
+      this.userId = id;
     }
-
-    this.userId = userId;
-
-    await new Promise((r) => setTimeout(r, 1000));
-
     
-    console.log("userBot login:", userId);
+    console.log("userBot login:", username, this.userId);
   }
 
   //sends a message
@@ -148,7 +146,6 @@ class UserBot {
 
     // Wait for the message input area to load
     await this.page.waitForSelector('div[role="textbox"]');
-
 
     await new Promise(r => setTimeout(r, 2000))
 
@@ -201,7 +198,6 @@ class UserBot {
     }
     
     await this.page.waitForSelector(`[id="message-accessories-${message.id}"]`)
-
     await new Promise((r) => setTimeout(r, 2000));
 
     let button = await this.page.evaluateHandle((message,buttonName) => {
