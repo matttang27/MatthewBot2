@@ -168,9 +168,10 @@ class MatthewClient extends Client {
      * @param {Function} function the function to apply to the event (for example, MessageUpdate should only grab newMessage)
      * @param {Object} object the simplified object to compare with the actual object. An empty object accepts any object.
      * @param {Number} timeLimit the amount of milliseconds to wait for
+     * @param {Boolean} strictArrays whether arrays should have the same length (see matchesSimplifiedProperties)
      * @returns {Promise<Object|Error>} returns a Promise that either resolves the found object or rejects an Error.
      */
-    async waitForEvent(event,func,mockObject,timeLimit) {
+    async waitForEvent(event,func,mockObject,timeLimit,strictArrays=false) {
         //needed because 'this' in the promise is a different scope
         let client = this;
         let checkedObjects = []
@@ -188,7 +189,7 @@ class MatthewClient extends Client {
 
                 
                 
-                let result = this.matchesSimplifiedProperties(object,mockObject)
+                let result = this.matchesSimplifiedProperties(object,mockObject,strictArrays)
                 if (result === true) {
                     client.off(event,checker);
                     clearTimeout(timeout)
@@ -267,17 +268,59 @@ class MatthewClient extends Client {
     /**
      * Compares a real object to a simplified version (ex. for embeds or components).
      * Returns true if every property in the simplified version is identical in the real object.
+     * Otherwise, returns a helpful error string.
      * @param {Object} real 
      * @param {Object} mock
      * @returns {string | true} the property that doesn't match / exist
+     * 
+     * Behaviour (tests can be found in {@link file://./matthewClient.test.js}):
+     * Empty objects only checks that realObject key is an object
+     * 
+     * If strictArrays = true,
+     * Arrays require same length.
+     * Otherwise, arrays allow extra elements.
+     * 
+     * @example
+     * mock = {test: {}}
+     * {test: {}} - PASS, {test: {"HELLO":"HI"}} - PASS, {test: {}} - FAIL, {test: "HELLO"} - FAIL
+     * 
+     * @example
+     * mock = {test: []}
+     * strictArrays = true
+     * {test: []} - PASS, {test: ["HELLO"]} - PASS, {test: "HELLO"} - FAIL
+     * 
+     * @example
+     * mock = {test: ["HELLO"]}
+     * strictArrays = true
+     * {test: []} - FAIL, {test: ["HELLO"]} - PASS, {test: ["HELLO","HI"]} - PASS
+     * 
+     * @todo add map / collection functionality? It is already object, but could add strict mode for length.
      */
-    matchesSimplifiedProperties(real,mock) {
+    matchesSimplifiedProperties(real,mock,strictArrays=false) {
         for (let key in mock) {
-            if (!real.hasOwnProperty(key)) return `${key} does not exist`;
-            if (typeof real[key] == "object") {
-                if (this.matchesSimplifiedProperties(real[key], mock[key]) !== true) return `${key} different: real: ${real[key]} mock: ${mock[key]}`;
+            if (!real.hasOwnProperty(key)) return `${key} does not exist in real`;
+
+            if (mock[key] instanceof Array) {
+                if (! (real[key].constructor == Array)) {
+                    return `real ${key} has type ${real[key].constructor.name} instead of Array`
+                }
+                if (strictArrays && real[key].length != mock[key].length) {
+                    return `real ${key} has size ${real[key].length} instead of ${mock[key].length}. Turn strictArrays off to allow different lengths.`
+                }
+                let result = this.matchesSimplifiedProperties(real[key], mock[key])
+
+                
+                if (result !== true) {
+                    let [index, ...message] = result.split(".");
+                    return `${key}[${index}].${message.join(".")}`
+                };
+            }
+
+            else if (typeof real[key] == "object") {
+                let result = this.matchesSimplifiedProperties(real[key], mock[key])
+                if (result !== true) return `${key}.` + result;
             } else {
-                if (real[key] != mock[key]) return false;
+                if (real[key] != mock[key]) return `${key} different: real: ${real[key]}, mock: ${mock[key]}`;
             }
         }
         return true;
