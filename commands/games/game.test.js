@@ -486,3 +486,5 @@ describe("Options Stage", () => {
 		});
 	});
 });
+
+module.exports = goToOptions;
