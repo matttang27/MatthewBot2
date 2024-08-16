@@ -21,6 +21,8 @@ async function setup(client, BOT_COUNT) {
         });
     });
 
+    console.log("Client Ready!")
+
     client.testGuild = await client.guilds.fetch(process.env.TEST_GUILD_ID);
 
     let channels = await client.testGuild.channels.fetch();

@@ -1,7 +1,5 @@
 ### Connect4 Game Actions & Results
 
-Bolded Actions have tests completed
-
 Lobby, Options, End Stage are contained in gameactions.md
 
 | **Stage**  | **Action**          | **Precondition**        | **Result**                                          |
@@ -21,3 +19,4 @@ Lobby, Options, End Stage are contained in gameactions.md
 |            | Current times out   | At least 3 players left | Player loses and can no longer play, next turn      |
 |            |                     |                         | All of timed out player pieces turn black           |
 |            |                     | Only 2 players          | Remaining player wins, Game goes to end stage       |
+

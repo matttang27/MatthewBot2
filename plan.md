@@ -1,16 +1,4 @@
-
-- **Create basic connect4 game**
-    - **Simple 6 x 7** 
-    - **Customization (players, size, emojis)**
-    - **Change player amount check to the start button, not at the collection end**
-    - **Implement max players**
-- **Extend to all games (GameManager)**
-- **Host online**
-    - **Set up google cloud compute**
-    - **Split prod and testing (I should probably do this earlier)**
-    - **~~Automatically reload on github changes~~ too much work lol just git pull & systemctl restart discord-bot**
-
-TODO:
+# TODO:
 
 - Create jest tests for all current code
     - **figure out how to detect ephemeral responses (I don't think they appear in cache)**
@@ -18,8 +6,9 @@ TODO:
     - **make seeing client output results simpler**
     - **split actions table**
     - **create a waitForNextMessage that accepts any message**
-    - create extensive game.test.js for Lobby & Options
+    - **create extensive game.test.js for Lobby & Options**
     - create an extensive connect4.test.js for connect4 specific actions
+        - idk
 - Complete Connect4game
     - **Timer in footer**
     - **Lose on timeout**
@@ -39,11 +28,37 @@ TODO:
     - Better win screen
     - Gamemodes (blind)
     - Play again button
-    - Save Game Settings per channel
 - Set up mongodb
     - Create profile / stats
     - Stats for Connect4
+    - Save Game Settings per channel
+        - Need to create channelManager object that will load from online database
+    - Games object in client (?)
 
-Maybe TODO:
+### Maybe TODO:
 - Make mainEmbed title be set automatically when a new stage arrives. 
 - Make emoji selection part of GameManager so it can be applied to other games
+
+
+# TIMELINE:
+- Complete all connect4 tests - 13th
+- Connect4 gamemodes, QOL, tests - 15th
+- Mongodb, stats - 18th
+- Add wordgames - 23th
+- Go on vacation - 24th-31th
+- RELEASE TO PUBLIC - ???
+
+
+
+# COMPLETED:
+
+- **Create basic connect4 game**
+    - **Simple 6 x 7** 
+    - **Customization (players, size, emojis)**
+    - **Change player amount check to the start button, not at the collection end**
+    - **Implement max players**
+- **Extend to all games (GameManager)**
+- **Host online**
+    - **Set up google cloud compute**
+    - **Split prod and testing (I should probably do this earlier)**
+    - **~~Automatically reload on github changes~~ too much work lol just git pull & systemctl restart discord-bot**

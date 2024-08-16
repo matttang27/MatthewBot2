@@ -444,6 +444,7 @@ class Game {
                         m.author.id == this.players.at(0).user.id;
                     optionSelecting = false;
                 } else if (!optionSelecting && oFilter(m)) {
+                    await m.delete();
                     this.currentOptions[oSelected.name] = parseInt(m.content);
 
                     

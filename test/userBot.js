@@ -119,11 +119,13 @@ class UserBot {
       );
     }
 
-    if (this.page.url() != `https://discord.com/channels/@me`) {
-      await this.page.goto(`https://discord.com/channels/@me`);
-    }
+    
 
     if (id === undefined) {
+      if (this.page.url() != `https://discord.com/channels/@me`) {
+        await this.page.goto(`https://discord.com/channels/@me`);
+      }
+      
       let userId = await this.getUserID();
       if (!userId) {
         await this.enableDeveloperMode();

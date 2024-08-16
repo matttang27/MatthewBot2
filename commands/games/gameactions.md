@@ -1,7 +1,5 @@
 ### Connect4 Game Actions & Results
 
-Bolded Actions have tests completed
-
 | **Stage**   | **Action**             | **Precondition**                 | **Result**                                                |
 | ----------- | ---------------------- | -------------------------------- | --------------------------------------------------------- |
 | **Lobby**   | Game Command           |                                  | Lobby created with player list and buttons                |
