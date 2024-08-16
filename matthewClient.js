@@ -200,12 +200,8 @@ class MatthewClient extends Client {
             }
 
             const timeout = setTimeout(() => {
-                client.off(event,checker);
-                //maybe print out differences between checkedObjects and mockObject
-                console.dir(checkedObjects, {depth: null})
-                const error = new Error(`Matching event was not found within the timeLimit for ${JSON.stringify(mockObject, null, 2)}`);
-                console.error(error);
-                console.error(checkedObjects.stack);
+                client.off(event,checker);  
+                const error = new Error(`Matching event was not found within the timeLimit for ${JSON.stringify(mockObject, null, 2)}.\n\n checkedObjects:\n${JSON.stringify(checkedObjects, null, 2)}\n\nAt ${checkedObjects.stack}. `);
                 reject(error);
             }, timeLimit);
 

@@ -13,6 +13,9 @@
       ],
       "@config": [
         "./config.json"
+      ],
+      "@testHelpers": [
+        "./commands/games/testHelpers.js"
       ]
     }
   },

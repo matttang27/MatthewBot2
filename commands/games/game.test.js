@@ -8,6 +8,7 @@ const client = new MatthewClient();
 const UserBot = require("@userBot");
 const { Message, InteractionResponse } = require("discord.js");
 const BOT_COUNT = 3;
+var GAME_COMMAND = "testgame";
 
 /** @type {UserBot[]} */
 let bots = [];
@@ -16,47 +17,20 @@ let bots = [];
 let response;
 
 const { setup, eachSetup } = require("@testSetup");
+
+const {goToOptionsCreator, goToOptionsBase} = require("@testHelpers");
+
+let goToOptions;
 beforeAll(async () => {
 	bots = await setup(client, BOT_COUNT);
+	goToOptions = goToOptionsCreator(GAME_COMMAND, bots, client);
 }, 100_000);
 
 beforeEach(async () => {
 	await eachSetup(client, bots);
 });
 
-/**
- * Goes directly to options screen by having players automatically join the lobby
- * @param {string} command the command to input
- * @param {number} num_players the number of players to join lobby
- * @returns {[InteractionResponse,InteractionResponse]}
- * returns the main response and options response or an error if a bug occured.
- */
-async function goToOptions(num_players) {
-	try {
-		await bots[0].sendCommand("testgame");
-		let response = await client.waitForMessageCreate(true);
 
-		for (var i = 1; i < num_players; i++) {
-			await bots[i].clickButton("Join / Leave", response);
-
-			response = await client.waitForMessageUpdate(true);
-		}
-
-		await bots[0].clickButton("Start", response);
-
-		let [mainResponse, optionResponse] = await Promise.all([
-			client.waitForMessageUpdate({ id: response.id }),
-			client.waitForMessageUpdate({
-				embeds: [{ data: { title: "Options" } }],
-			}),
-		]);
-
-		return [mainResponse, optionResponse];
-	} catch (err) {
-		console.error(err);
-		return new Error("Options Stage failed");
-	}
-}
 
 describe("Lobby Stage", () => {
 	describe("Game Command", () => {
@@ -236,7 +210,7 @@ describe("Options Stage", () => {
 	describe("Options Stage Start", () => {
 		it("changes lobby embed title, removes buttons, and sends new message with options list and buttons", async () => {
 			let [response, optionsResponse] = await goToOptions(3);
-
+			
 			expect(response.embeds.at(0).title).toBe("game game configuring...");
 			expect(response.components.length).toBe(0);
 			expect(optionsResponse.components.at(0).components.length).toBe(3);
@@ -335,11 +309,10 @@ describe("Options Stage", () => {
 	});
 
 	describe("Owner Clicks Continue", () => {
-		it("deletes message and transitions to emojis stage", async () => {
+		it("deletes message and transitions to setup stage", async () => {
 			let [mainResponse, optionsResponse] = await goToOptions(3);
-			let emojiResponse;
 			await bots[0].clickButton("Continue", optionsResponse);
-			[emojiResponse, optionsResponse] = await Promise.all([
+			let [setupResponse, optionsDelete] = await Promise.all([
 				client.waitForMessageUpdate(
 					{
 						embeds: [{ data: { title: "game game setting up..." } }],
@@ -436,10 +409,10 @@ describe("Options Stage", () => {
 			]);
 
 			expect(
-				optionsResponse.description.includes("**Example setting** - 5")
+				optionsResponse.embeds.at(0).description.includes("Example setting - **5**")
 			).toBeTruthy();
 		});
-
+ 
 		it("ignores invalid value", async () => {
 			let [mainResponse, optionsResponse] = await goToOptions(2);
 
@@ -487,4 +460,4 @@ describe("Options Stage", () => {
 	});
 });
 
-module.exports = goToOptions;
+module.exports = goToOptionsCreator;

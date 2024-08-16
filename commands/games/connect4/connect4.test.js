@@ -8,29 +8,60 @@ const client = new MatthewClient();
 const UserBot = require("@userBot");
 const { Message, InteractionResponse } = require("discord.js");
 const BOT_COUNT = 3;
-
+var GAME_COMMAND = "connect4";
 /** @type {UserBot[]} */
 let bots = [];
 
 /** @type {Message} */
 let response;
 
+const {goToOptionsCreator, goToOptionsBase} = require("@testHelpers");
+
+let goToOptions;
+
 const { setup, eachSetup } = require("@testSetup");
 beforeAll(async () => {
 	bots = await setup(client, BOT_COUNT);
+	goToOptions = goToOptionsCreator(GAME_COMMAND, bots, client);
 }, 100_000);
 
 beforeEach(async () => {
 	await eachSetup(client, bots);
 });
 
-const goToOptions = require('../game.test');
 
+
+
+async function goToEmojis(num_players) {
+    let [response, optionsResponse] = await goToOptions(num_players);
+
+    await bots[0].clickButton("Continue", optionsResponse);
+    let [mainEdit, emojiResponse, optionsDelete] = await Promise.all([
+        client.waitForMessageUpdate(
+            {
+                embeds: [{ data: { title: "Connect4 game setting up..." } }],
+            },
+            true
+        ),
+        client.waitForMessageUpdate(
+            {
+                embeds: [{ data: { title: "Set emojis" } }],
+            }
+        ),
+        client.waitForMessageDelete({
+            embeds: [{ data: { title: "Options" } }],
+        }),
+    ]);
+
+    return [mainEdit, emojiResponse]
+}
 describe("Emojis Stage", () => {
 
 	describe("Emojis Stage Start", () => {
 		it("changes the lobby embed title and sets default emojis", async () => {
-			// Implementation here
+			let [mainResponse, emojiResponse] = await goToEmojis(2);
+            expect(mainResponse.embeds.at(0).data.title).toBe("Connect4 game setting up...") 
+            expect(emojiResponse.embeds.at(0).data.title).toBe("Set emojis");
 		});
 
 		it("sends a new message with the current emojis list and buttons", async () => {

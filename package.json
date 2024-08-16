@@ -23,6 +23,7 @@
     "@client": "./matthewClient.js",
     "@config": "./config",
     "@userBot": "./test/userBot.js",
-    "@testSetup": "./test/testSetup.js"
+    "@testSetup": "./test/testSetup.js",
+    "@testHelpers": "./commands/games/testHelpers.js"
   }
 }

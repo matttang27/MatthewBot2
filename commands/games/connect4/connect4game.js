@@ -147,7 +147,7 @@ class Connect4Game extends Game {
                 cancel
             );
 
-            const emojisEmbed = new EmbedBuilder().setTitle("Options");
+            const emojisEmbed = new EmbedBuilder().setTitle("Set emojis");
 
             this.editEmojiEmbed(emojisEmbed);
 
