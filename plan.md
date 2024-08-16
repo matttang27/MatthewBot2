@@ -36,6 +36,7 @@
     - Games object in client (?)
 
 ### Maybe TODO:
+- Make UserBot actions return the interaction. (Ex. UserBot.sendMessage uses the client.waitForMessageCreate, and returns the message);
 - Make mainEmbed title be set automatically when a new stage arrives. 
 - Make emoji selection part of GameManager so it can be applied to other games
 

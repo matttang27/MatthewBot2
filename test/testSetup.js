@@ -4,6 +4,7 @@ const MatthewClient = require("@root/matthewClient");
 const UserBot = require("@userBot");
 const { Client } = require("discord.js");
 const fs = require('fs');
+const deployCommands = require("@root/deploy-commands.js")
 /**
  * 
  * @param {MatthewClient} client 
@@ -21,7 +22,7 @@ async function setup(client, BOT_COUNT) {
         });
     });
 
-    console.log("Client Ready!")
+    await deployCommands(client);
 
     client.testGuild = await client.guilds.fetch(process.env.TEST_GUILD_ID);
 
@@ -74,8 +75,9 @@ async function setup(client, BOT_COUNT) {
  * @param {UserBot[]} bots 
  */
 async function eachSetup(client,bots) {
+    //what does tz even stand for???
     client.testChannel = await client.testGuild.channels.create({
-        name: "tz ".concat(expect.getState().currentTestName).slice(0,100),
+        name: "tz ".concat(typeof expect === "undefined" ? "custom" : expect.getState().currentTestName).slice(0,100),
     });
     
     bots.forEach(bot => bot.channelId = client.testChannel.id)
