@@ -2,7 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const mode = process.env.NODE_ENV || 'test'; // Default to 'test' if not set
 require('dotenv').config({ path: `.env.${mode}` });
-const { Client, Collection, Events, GatewayIntentBits, Message, Guild, TextChannel } = require('discord.js');
+const { Client, Collection, Events, GatewayIntentBits, Message, Guild, TextChannel, User } = require('discord.js');
 
 class MatthewClient extends Client {
     //Testing variables only
@@ -250,14 +250,31 @@ class MatthewClient extends Client {
         }
         return mockMessage
     }
+    /** @returns {Promise<Message>} */
     async waitForMessageCreate(mockObject,base=false,timeLimit=5000) {
         return this.waitForEvent(Events.MessageCreate,(m) => m, this.editMockMessage(mockObject,base), timeLimit);
     }
+    /** @returns {Promise<Message>} */
     async waitForMessageUpdate(mockObject,base=false,timeLimit=5000) {
         return this.waitForEvent(Events.MessageUpdate,(oM,nM) => nM, this.editMockMessage(mockObject,base), timeLimit)
     }
+    /** @returns {Promise<Message>} */
     async waitForMessageDelete(mockObject,base=false,timeLimit=5000) {
         return this.waitForEvent(Events.MessageDelete,(m) => m, this.editMockMessage(mockObject,base), timeLimit)
+    }
+    /** @returns {Promise<[MessageReaction, User]>} */
+    async waitForReactionAdd(mockObject,base=false,timeLimit=5000) {
+        return this.waitForEvent(Events.MessageReactionAdd,(r,u) => [r,u], mockObject, timeLimit);
+    }
+    /**
+     * 
+     * @param {Object} mockObject 
+     * @param {Boolean} base 
+     * @param {Number} timeLimit 
+     * @returns {Promise<[MessageReaction, User]>}
+     */
+    async waitForReactionRemove(mockObject,base=false,timeLimit=5000) {
+        return this.waitForEvent(Events.MessageReactionRemove,(r,u) => [r,u], mockObject, timeLimit);
     }
     
 
@@ -298,10 +315,10 @@ class MatthewClient extends Client {
 
             if (mock[key] instanceof Array) {
                 if (! (real[key].constructor == Array)) {
-                    return `real ${key} has type ${real[key].constructor.name} instead of Array`
+                    return `${key} has type ${real[key].constructor.name} instead of Array`
                 }
                 if (strictArrays && real[key].length != mock[key].length) {
-                    return `real ${key} has size ${real[key].length} instead of ${mock[key].length}. Turn strictArrays off to allow different lengths.`
+                    return `${key} has size ${real[key].length} instead of ${mock[key].length}. Turn strictArrays off to allow different lengths.`
                 }
                 let result = this.matchesSimplifiedProperties(real[key], mock[key])
 

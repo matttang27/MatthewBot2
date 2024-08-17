@@ -163,15 +163,11 @@ class Connect4Game extends Game {
             });
 
             const rFilter = (r, u) => {
-                return this.players.has(u.id) &&
-                    (!this.players
-                        .map((p) => p.other.emoji)
-                        .includes(r.emoji.name)) &&
-                    (!this.bannedEmojis.includes(r.emoji.name));
+                return true
             };
 
             const rCollector = await message.createReactionCollector({
-                filter: rFilter,
+                filter: (r,u) => true,
                 time: 500_000,
             });
 
@@ -204,11 +200,16 @@ class Connect4Game extends Game {
                         } else {
                             this.players.delete(i.user.id);
                             this.editEmojiEmbed(emojisEmbed);
-                            await message.edit({ embeds: [emojisEmbed] });
 
                             await i.reply(
-                                successEmbed("You are not in this lobby!")
+                                successEmbed("You have left the game.")
                             );
+                            
+                            await message.edit({ embeds: [emojisEmbed] });
+
+                            await this.updateLobby();
+
+                            
                         }
                     } else {
                         await i.reply(errorEmbed("You are not in this lobby!"));
@@ -217,9 +218,17 @@ class Connect4Game extends Game {
             });
 
             rCollector.on("collect", async (r, u) => {
-                this.players.get(u.id).other.emoji = r.emoji.toString();
-                this.editEmojiEmbed(emojisEmbed);
-                await message.edit({ embeds: [emojisEmbed] });
+                if (this.players.has(u.id) &&
+                    (!this.players.map((p) => p.other.emoji).includes(r.emoji.name)) &&
+                    (!this.bannedEmojis.includes(r.emoji.name))) {
+                    this.players.get(u.id).other.emoji = r.emoji.toString();
+                    this.editEmojiEmbed(emojisEmbed);
+                    await message.edit({ embeds: [emojisEmbed] });
+                } else {
+                    r.users.remove(u);
+                }
+                
+                
             });
 
             bCollector.on("end", async (c, r) => {

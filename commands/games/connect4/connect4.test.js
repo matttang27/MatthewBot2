@@ -17,9 +17,12 @@ let response;
 
 const {goToOptionsCreator, goToOptionsBase} = require("@testHelpers");
 
-let goToOptions;
 
 const { setup, eachSetup } = require("@testSetup");
+
+/** @type {function(number): Promise<[InteractionResponse, InteractionResponse]>} */
+let goToOptions;
+
 beforeAll(async () => {
 	bots = await setup(client, BOT_COUNT);
 	goToOptions = goToOptionsCreator(GAME_COMMAND, bots, client);
@@ -58,34 +61,199 @@ async function goToEmojis(num_players) {
 describe("Emojis Stage", () => {
 
 	describe("Emojis Stage Start", () => {
-		it("changes the lobby embed title and sets default emojis", async () => {
+		it("changes the lobby embed title and sets default emojis and sends a new message with the current emojis list and buttons", async () => {
 			let [mainResponse, emojiResponse] = await goToEmojis(2);
+			console.log(emojiResponse.embeds.at(0).data.description);
             expect(mainResponse.embeds.at(0).data.title).toBe("Connect4 game setting up...") 
             expect(emojiResponse.embeds.at(0).data.title).toBe("Set emojis");
-		});
-
-		it("sends a new message with the current emojis list and buttons", async () => {
-			// Implementation here
+			
 		});
 	});
 
 	describe("Player reacts emoji", () => {
-		it("shows an error message if the player picks a non-unique emoji", async () => {
-			// Implementation here
+		it("removes reaction if the player picks a non-unique emoji", async () => {
+			let [mainResponse, emojiResponse] = await goToEmojis(3);
+			await bots[2].addReaction("blue_circle", emojiResponse);
+			let reactionRemove = await client.waitForReactionRemove([{},{id: bots[2].userId}]);
 		});
 
-		it("shows an error message if the player picks a banned emoji", async () => {
-			// Implementation here
+		it("removes reaction if the player picks a banned emoji", async () => {
+			let [mainResponse, emojiResponse] = await goToEmojis(3);
+			await bots[0].addReaction("black_circle", emojiResponse);
+			let reactionRemove = await client.waitForReactionRemove([{},{id: bots[0].userId}]);
 		});
 
 		it("updates the player emoji and edits the message when a valid emoji is picked", async () => {
-			// Implementation here
+			let [mainResponse, emojiResponse] = await goToEmojis(3);
+			await bots[0].addReaction("green_circle", emojiResponse);
+			emojiResponse = await client.waitForMessageUpdate({embeds: [{data: {title: "Set emojis"}}]});
+			expect(emojiResponse.embeds.at(0).description.includes("green_circle"));
 		});
 	});
 
-	describe("Same buttons", () => {
-		it("verifies the buttons remain the same during the stage", async () => {
-			// Implementation here
+	describe("Buttons are the same as options stage, and update emoji response accordingly.", () => {
+		describe("Owner Clicks Leave", () => {
+			it("cancels game if less than 3 players and deletes options message", async () => {
+				let [mainResponse, emojiResponse] = await goToEmojis(2);
+				await bots[0].clickButton("Leave Game", emojiResponse);
+				[mainResponse, emojiResponse] = await Promise.all([
+					client.waitForMessageUpdate(
+						{ embeds: [{ data: { title: "Connect4 game cancelled" } }] },
+						true
+					),
+					client.waitForMessageDelete({
+						embeds: [{ data: { title: "Set emojis" } }],
+					}),
+				]);
+	
+				
+			});
+	
+			it("removes owner from players, sets next player as owner, and updates lobby & emoji message if at least 3 players", async () => {
+				let [mainResponse, emojisResponse] = await goToEmojis(3);
+				await bots[0].clickButton("Leave Game", emojisResponse);
+				[mainResponse, emojisResponse] = await Promise.all([
+					client.waitForMessageUpdate(
+						{
+							embeds: [{ data: { title: "Connect4 game setting up..." } }],
+						},
+						true
+					),
+					client.waitForMessageUpdate({
+						embeds: [{ data: { title: "Set emojis" } }],
+					}),
+				]);
+	
+				expect(
+					mainResponse.embeds.at(0).description.includes(`<@${bots[0].userId}>`)
+				).toBeFalsy();
+				expect(
+					mainResponse.embeds.at(0).description.includes(`<@${bots[1].userId}> - :crown:`)
+				).toBeTruthy();
+				expect(
+					mainResponse.embeds.at(0).description.includes(`<@${bots[2].userId}>`)
+				).toBeTruthy();
+	
+				expect(
+					emojisResponse.embeds.at(0).description.includes(`<@${bots[0].userId}>`)
+				).toBeFalsy();
+				expect(
+					emojisResponse.embeds.at(0).description.includes(`<@${bots[1].userId}>`)
+				).toBeTruthy();
+			});
+		});
+	
+		describe("Other Clicks Leave", () => {
+			it("cancels game if less than 3 players and deletes options message", async () => {
+				let [mainResponse, emojisResponse] = await goToEmojis(2);
+				await bots[1].clickButton("Leave Game", emojisResponse);
+				[mainResponse, emojisResponse] = await Promise.all([
+					client.waitForMessageUpdate(
+						{ embeds: [{ data: { title: "Connect4 game cancelled" } }] },
+						true
+					),
+					client.waitForMessageDelete({
+						embeds: [{ data: { title: "Set emojis" } }],
+					}),
+				]);
+			});
+	
+			it("updates emoji list and lobby message if at least 3 players", async () => {
+				let [mainResponse, emojisResponse] = await goToEmojis(3);
+				bots[1].clickButton("Leave Game", emojisResponse);
+
+				let successResponse;
+	
+				[mainResponse, emojisResponse, successResponse] = await Promise.all(
+					[client.waitForMessageUpdate({ embeds: [{ data: { title: "Connect4 game setting up..." } }] }), 
+					 client.waitForMessageUpdate({embeds: [{data: {title: "Set emojis"}}]}),
+					 client.waitForMessageCreate({embeds: [{data: {description: "You have left the game."}}]})
+					])
+	
+				expect(
+					mainResponse.embeds.at(0).description.includes(`<@${bots[0].userId}> - :crown:`)
+				).toBeTruthy();
+				expect(
+					mainResponse.embeds.at(0).description.includes(`<@${bots[1].userId}> - :crown:`)
+				).toBeFalsy();
+				expect(
+					mainResponse.embeds.at(0).description.includes(`<@${bots[2].userId}>`)
+				).toBeTruthy();
+
+				expect(
+					emojisResponse.embeds.at(0).description.includes(`<@${bots[0].userId}>`)
+				).toBeTruthy();
+				expect(
+					emojisResponse.embeds.at(0).description.includes(`<@${bots[1].userId}>`)
+				).toBeFalsy();
+				expect(
+					emojisResponse.embeds.at(0).description.includes(`<@${bots[2].userId}>`)
+				).toBeTruthy();
+			});
+		});
+	
+		describe("Owner Clicks Continue", () => {
+			it("deletes message and transitions to game stage", async () => {
+				let [mainResponse, emojisResponse] = await goToEmojis(3);
+				await bots[0].clickButton("Continue", emojisResponse);
+
+				let emojisDelete, gameResponse;
+				[mainResponse, emojisDelete, gameResponse] = await Promise.all([
+					client.waitForMessageUpdate({embeds: [{ data: { title: "Connect4 game ongoing!" } }]}),
+					client.waitForMessageDelete({embeds: [{ data: { title: "Set emojis" } }]}),
+					client.waitForMessageCreate({embeds: [{}]})
+				]);
+
+				expect(gameResponse.embeds.at(0).description.includes(`<@${bots[0].userId}>`)).toBeTruthy();
+			});
+		});
+	
+		describe("Other Clicks Continue", () => {
+			it("shows error for not being owner", async () => {
+				let [mainResponse, emojisResponse] = await goToEmojis(2);
+				await bots[1].clickButton("Continue", emojisResponse);
+	
+				response = await client.waitForMessageCreate(true);
+	
+				expect(response.embeds.at(0).description).toBe(
+					"You are not the owner of this lobby!"
+				);
+			});
+		});
+	
+		describe("Owner Clicks Cancel", () => {
+			it("closes lobby, option message deleted", async () => {
+				let [mainResponse, emojisResponse] = await goToEmojis(2);
+				await bots[0].clickButton("Cancel Game", emojisResponse);
+				[mainResponse, emojisResponse] = await Promise.all([
+					client.waitForMessageUpdate(
+						{ embeds: [{ data: { title: "Connect4 game cancelled" } }] },
+						true
+					),
+					client.waitForMessageDelete({
+						embeds: [{ data: { title: "Set emojis" } }],
+					}),
+				]);
+	
+				expect(mainResponse.embeds.at(0).description).toBe("Blame the leader");
+			});
+		});
+	
+		describe("Other Clicks Cancel", () => {
+			it("shows error for not being owner", async () => {
+				let [mainResponse, emojisResponse] = await goToEmojis(2);
+				bots[1].clickButton("Cancel Game", emojisResponse);
+	
+				response = await client.waitForMessageCreate(true);
+	
+				expect(response.embeds.at(0).description).toBe(
+					"You are not the owner of this lobby!"
+				);
+	
+				expect(response.embeds.at(0).description).toBe(
+					"You are not the owner of this lobby!"
+				);
+			});
 		});
 	});
 });

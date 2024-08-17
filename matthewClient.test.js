@@ -104,20 +104,20 @@ describe("matthewClient's matches simplified properties", () => {
             //This may be unexpected behaviour, but I don't think it matters B)
             expect(
                 client.matchesSimplifiedProperties({embeds: {}}, {embeds: []})
-            ).toBe("real embeds has type Object instead of Array");
+            ).toBe("embeds has type Object instead of Array");
 
             //This may be unexpected behaviour, but I don't think it matters B)
             expect(
                 client.matchesSimplifiedProperties({embeds: "HELLO"}, {embeds: []})
-            ).toBe("real embeds has type String instead of Array");
+            ).toBe("embeds has type String instead of Array");
         })
         it("causes error if real key is not array", () => {
             expect(client.matchesSimplifiedProperties({embeds: "HELLO"}, {embeds: [{}]}))
-            .toBe("real embeds has type String instead of Array");
+            .toBe("embeds has type String instead of Array");
 
             //embeds should be array, not object
             expect(client.matchesSimplifiedProperties({embeds: {}}, {embeds: [{}]}))
-            .toBe("real embeds has type Object instead of Array");
+            .toBe("embeds has type Object instead of Array");
         })
         it("makes sure arrays are same length if strictArray is true", () => {
             expect(client.matchesSimplifiedProperties(
@@ -125,14 +125,14 @@ describe("matthewClient's matches simplified properties", () => {
                 {embeds: ["HELLO"]},
                 true)
             )
-            .toBe("real embeds has size 2 instead of 1. Turn strictArrays off to allow different lengths.");
+            .toBe("embeds has size 2 instead of 1. Turn strictArrays off to allow different lengths.");
 
             expect(client.matchesSimplifiedProperties(
                 {embeds: [{},{}]}, 
                 {embeds: []},
                 true)
             )
-            .toBe("real embeds has size 2 instead of 0. Turn strictArrays off to allow different lengths.");
+            .toBe("embeds has size 2 instead of 0. Turn strictArrays off to allow different lengths.");
 
         })
         it('allows extra elements if strictArrays if false', () => {

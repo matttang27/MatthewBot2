@@ -7,7 +7,7 @@
  * @param {UserBot[]} bots the UserBots to use
  * @param {MatthewClient} client the client
  * @param {number} numPlayers the number of players to join lobby
- * @returns {Promise<[InteractionResponse,InteractionResponse] | Error>} returns the main response and options response or an error if a bug occured.
+ * @returns {Promise<[InteractionResponse,InteractionResponse]>} returns the main response and options response or an error if a bug occured.
  * 
  */
 async function goToOptionsBase(gameCommand, bots, client, numPlayers) {
