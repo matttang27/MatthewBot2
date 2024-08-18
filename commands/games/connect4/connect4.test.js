@@ -20,7 +20,7 @@ const {goToOptionsCreator, goToOptionsBase} = require("@testHelpers");
 
 const { setup, eachSetup } = require("@testSetup");
 
-/** @type {function(number): Promise<[InteractionResponse, InteractionResponse]>} */
+/** @type {function(number): Promise<[Message, Message]>} */
 let goToOptions;
 
 beforeAll(async () => {
@@ -34,29 +34,34 @@ beforeEach(async () => {
 
 
 
-
+/**
+ * 
+ * @param {Number} num_players 
+ * @returns {[]}
+ */
 async function goToEmojis(num_players) {
     let [response, optionsResponse] = await goToOptions(num_players);
 
     await bots[0].clickButton("Continue", optionsResponse);
     let [mainEdit, emojiResponse, optionsDelete] = await Promise.all([
-        client.waitForMessageUpdate(
-            {
-                embeds: [{ data: { title: "Connect4 game setting up..." } }],
-            },
-            true
-        ),
-        client.waitForMessageUpdate(
-            {
-                embeds: [{ data: { title: "Set emojis" } }],
-            }
-        ),
-        client.waitForMessageDelete({
-            embeds: [{ data: { title: "Options" } }],
+        client.waitForMessageUpdate({embeds: [{ data: { title: "Connect4 game setting up..." } }]}),
+        client.waitForMessageUpdate({embeds: [{ data: { title: "Set emojis" }}]}),
+        client.waitForMessageDelete({embeds: [{ data: { title: "Options" }}],
         }),
     ]);
 
     return [mainEdit, emojiResponse]
+}
+
+async function goToGame(num_players) {
+	let [mainEdit, emojiResponse] = await goToEmojis(num_players);
+
+	await bots[0].clickButton("Continue", optionsResponse);
+    [mainEdit, emojiResponse, optionsDelete] = await Promise.all([
+        client.waitForMessageUpdate({embeds: [{ data: { title: "Connect4 game ongoing!" } }]}),
+		client.waitForMessageDelete({embeds: [{ data: { title: "Set emojis" } }]}),
+		client.waitForMessageCreate({embeds: [{}]})
+    ]);
 }
 describe("Emojis Stage", () => {
 
@@ -261,12 +266,8 @@ describe("Emojis Stage", () => {
 describe("Game Stage", () => {
 
 	describe("Game Stage Start", () => {
-		it("changes the lobby embed title", async () => {
-			// Implementation here
-		});
-
-		it("sends a new message with an empty board asking player 1 to play", async () => {
-			// Implementation here
+		it("changes the lobby embed title, sends empty board asking player 1 to play.", async () => {
+			
 		});
 	});
 

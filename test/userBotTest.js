@@ -5,17 +5,19 @@ const client = new MatthewClient();
 const UserBot = require("@userBot");
 const { setup, eachSetup } = require("@testSetup");
 const BOT_COUNT = 3;
+const {goToOptionsCreator, goToOptionsBase} = require("@testHelpers");
+
+let goToOptions;
+const GAME_COMMAND = "connect4";
 
 (async () => {
     bots = await setup(client, BOT_COUNT);
     await eachSetup(client, bots);
 
-    let helloMessagePromise = client.waitForMessageCreate({content: "Hello"})
-    bots[0].sendMessage("Hello");
+    goToOptions = goToOptionsCreator(GAME_COMMAND, bots, client);
 
-    let helloMessage = await helloMessagePromise;
-    console.log(helloMessage);
-    await bots[0].addReaction("red_circle", helloMessage);
+    let [response, optionsResponse] = await goToOptions(3);
+
 
     
     

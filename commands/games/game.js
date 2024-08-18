@@ -489,6 +489,11 @@ class Game {
             resolve();
         });
     }
+
+    /**
+     * 
+     * @returns {Promise}
+     */
     winScreen() {
         return new Promise(async (resolve, reject) => {
             this.mainEmbed.setTitle(
