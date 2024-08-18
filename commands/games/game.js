@@ -8,11 +8,21 @@ const {
     ComponentType,
     Collection,
     MessageType,
+    CommandInteraction,
+    User,
+    Embed,
+    InteractionResponse,
+    TextChannel,
 } = require("discord.js");
 
 const { errorEmbed, successEmbed, returnEmotes } = require("@root/functions");
+const MatthewClient = require("@root/matthewClient");
 
 class Game {
+    /**
+     * 
+     * @param {CommandInteraction} interaction 
+     */
     constructor(interaction) {
         this.properties = {
             gameName: "game",
@@ -32,20 +42,23 @@ class Game {
                     parseInt(m.content) <= 20,
             },
         ];
-
         /**
-         * @type {Interaction}
+         * @type {Object}
          */
+        this.currentOptions = {};
+
+        /** @type {MatthewClient}*/
+        this.client = interaction.client
+
+        /** @type {CommandInteraction} */
         this.interaction = interaction;
 
-        /**
-         * @type {Channel}
-         */
+        /** @type {TextChannel}*/
         this.channel = interaction.channel;
 
         /**
          * The main response message
-         * @type {Response}
+         * @type {InteractionResponse}
          */
         this.response;
 
@@ -53,7 +66,7 @@ class Game {
          * The embed in the main response message
          * @type {Embed}
          */
-        this.mainEmbed;
+        this.mainEmbed = new EmbedBuilder.setColor("Green")
 
         /**
          * @type {Date}
@@ -70,10 +83,7 @@ class Game {
             other: {},
         });
 
-        /**
-         * @type {Object}
-         */
-        this.currentOptions = {};
+        
 
         /**
          * @type {string}
@@ -84,46 +94,72 @@ class Game {
          * @type {User|null}
          */
         this.winner = null;
+
+        /** @type {[{name: string, embedTitle: string, execute: function()}]} */
+        this.stages = [
+            {
+                name: "lobby",
+                embedTitle: "game created!",
+                execute: this.lobby
+            },
+            {
+                name: "settings",
+                embedTitle: "game configuring...",
+                execute: this.lobby
+            },
+            {
+                name: "setup",
+                embedTitle: "game setting up...",
+                execute: this.inputSettings,
+            },
+            {
+                name: "ingame",
+                embedTitle: "game ongoing!",
+                execute: this.playGame
+            },
+            {
+                name: "winScreen",
+                embedTitle: "game finished",
+                execute: this.winScreen
+            }
+        ]
+
+        this.errMessages = {
+            "cancelled": "Blame the leader",
+            "empty": "Everyone left? Y'all scared?",
+            "not enough": "Not enough players! Fake friends fr",
+            "time": "Make sure to press the button!"
+        };
     }
+    //TODO: Combine both lobby list and other responses into one message (why didn't I think of this earlier??)
+    //all testing will need to be revamped.
     async create() {
         try {
             this.response = await this.interaction.deferReply();
 
-            this.stage = "lobby";
-            await this.lobby();
+            this.client.games.set(this.client.games.size,this);
 
-            this.stage = "settings";
-            await this.inputSettings();
+            for (i in this.stages) {
+                this.stage = this.stages[i].name;
+                this.mainEmbed.title = this.stages[i].lobbyTitle;
+                await this.response.edit({embeds: [this.mainEmbed]});
+                await this.stages[i].execute();
+            }
 
-            this.stage = "setup";
-            await this.setup();
-
-            this.stage = "ingame";
-            await this.playGame();
-
-            this.stage = "winScreen";
-            await this.winScreen();
-
-            this.stage = "finished";
         } catch (err) {
             const cancelledEmbed = new EmbedBuilder()
                 .setColor("Red")
                 .setTitle(`${this.properties.gameName} game cancelled`);
 
-            const errMessages = {
-                "cancelled": "Blame the leader",
-                "empty": "Everyone left? Y'all scared?",
-                "not enough": "Not enough players! Fake friends fr",
-                "time": "Make sure to press the button!"
-            };
+            
 
-            if (err in errMessages) {
-                cancelledEmbed.setDescription(errMessages[err]);
-            } else {
-                console.log(err);
+            if (! (err in this.errMessages)) {
+                console.log(`${err} was not found in errMessages`);
                 return;
+                
             }
 
+            cancelledEmbed.setDescription(this.errMessages[err]);
             await this.response.edit({
                 embeds: [cancelledEmbed],
                 components: [],
@@ -132,7 +168,7 @@ class Game {
     }
 
     /**
-     * updates the description of the main embed with changed players
+     * updates the description of the mainEmbed with changed players
      */
 
     async updateLobby() {
@@ -156,11 +192,7 @@ class Game {
      */
     async lobby() {
         return new Promise(async (resolve, reject) => {
-
-            this.mainEmbed = new EmbedBuilder()
-                .setColor("Green")
-                .setTitle(`${this.properties.gameName} game created! [${this.players.size}/${this.properties.maxPlayers}]`)
-
+            this.mainEmbed.title = `${this.properties.gameName} game created! [${this.players.size}/${this.properties.maxPlayers}]`
             this.updateLobby();
 
             const start = new ButtonBuilder()
@@ -260,9 +292,6 @@ class Game {
                     return;
                 }
 
-                this.mainEmbed.setTitle(
-                    `${this.properties.gameName} game configuring...`
-                );
                 this.response.edit({
                     embeds: [this.mainEmbed],
                     components: []
@@ -496,9 +525,6 @@ class Game {
      */
     winScreen() {
         return new Promise(async (resolve, reject) => {
-            this.mainEmbed.setTitle(
-                `${this.properties.gameName} game finished!`
-            );
             this.response.edit({
                 embeds: [this.mainEmbed],
                 components: [],

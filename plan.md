@@ -36,9 +36,11 @@
     - Games object in client (?)
 
 ### Maybe TODO:
-- Make UserBot actions return the interaction. (Ex. UserBot.sendMessage uses the client.waitForMessageCreate, and returns the message);
-- Make mainEmbed title be set automatically when a new stage arrives. 
+- Make UserBot actions return the interaction. (Ex. UserBot.sendMessage uses the client.waitForMessageCreate, and returns the message) - Not really needed right now though (?)
+- **Make mainEmbed title be set automatically when a new stage arrives.**
 - Make emoji selection part of GameManager so it can be applied to other games
+- matchesSimplifiedProperties can accept functions? For example, to allow a message with embed title containing "Hello", can do, matchesSimplifiedProperties({embeds: [{data: {title: (t) => t.includes("Hello")}}]}) - I can see use cases, but it might be better just to expect test.
+- Only one game per channel?    
 
 
 # TIMELINE:

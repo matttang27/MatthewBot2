@@ -236,9 +236,7 @@ class Connect4Game extends Game {
                 if (r != "continue") {
                     reject(r);
                 } else {
-                    this.mainEmbed.setTitle(
-                        `${this.properties.gameName} game ongoing!`
-                    );
+
                     this.response.edit({
                         embeds: [this.mainEmbed],
                         components: [],
