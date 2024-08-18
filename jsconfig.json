@@ -16,6 +16,9 @@
       ],
       "@testHelpers": [
         "./commands/games/testHelpers.js"
+      ],
+      "@userBot": [
+        "./test/userBot.js"
       ]
     }
   },

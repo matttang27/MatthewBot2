@@ -186,14 +186,11 @@ class UserBot {
   }
 
   /**
-   * @param {stirng} buttonName 
+   * @param {string} buttonName 
    * @param {Message} message 
    * @returns 
    */
   async clickButton(buttonName, message) {
-    //find what "row" the button is on (embeds count as rows too)
-
-
     
     if (this.page.url() != `https://discord.com/channels/${message.guild.id}/${message.channel.id}`) {
       await this.page.goto(`https://discord.com/channels/${message.guild.id}/${message.channel.id}`);
@@ -202,6 +199,7 @@ class UserBot {
     await this.page.waitForSelector(`[id="message-accessories-${message.id}"]`)
     await new Promise((r) => setTimeout(r, 2000));
 
+    //find what "row" the button is on (embeds count as rows too)
     let button = await this.page.evaluateHandle((message,buttonName) => {
       let accs = document.getElementById(`message-accessories-${message.id}`)
       for (var i=0;i<accs.children.length; i++) {
@@ -225,6 +223,11 @@ class UserBot {
 
   }
 
+  /**
+   * 
+   * @param {string} emojiName 
+   * @param {Message} message 
+   */
   async addReaction(emojiName, message) {
     if (this.page.url() != `https://discord.com/channels/${message.guildId}/${message.channelId}`) {
       await this.page.goto(`https://discord.com/channels/${message.guildId}/${message.channelId}`);

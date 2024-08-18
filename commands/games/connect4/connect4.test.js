@@ -57,11 +57,13 @@ async function goToGame(num_players) {
 	let [mainEdit, emojiResponse] = await goToEmojis(num_players);
 
 	await bots[0].clickButton("Continue", optionsResponse);
-    [mainEdit, emojiResponse, optionsDelete] = await Promise.all([
+    [mainEdit, emojiDelete, gameResponse] = await Promise.all([
         client.waitForMessageUpdate({embeds: [{ data: { title: "Connect4 game ongoing!" } }]}),
 		client.waitForMessageDelete({embeds: [{ data: { title: "Set emojis" } }]}),
 		client.waitForMessageCreate({embeds: [{}]})
     ]);
+
+	return [mainEdit, gameResponse];
 }
 describe("Emojis Stage", () => {
 
@@ -129,22 +131,12 @@ describe("Emojis Stage", () => {
 					}),
 				]);
 	
-				expect(
-					mainResponse.embeds.at(0).description.includes(`<@${bots[0].userId}>`)
-				).toBeFalsy();
-				expect(
-					mainResponse.embeds.at(0).description.includes(`<@${bots[1].userId}> - :crown:`)
-				).toBeTruthy();
-				expect(
-					mainResponse.embeds.at(0).description.includes(`<@${bots[2].userId}>`)
-				).toBeTruthy();
+				expect(mainResponse.embeds.at(0).description.includes(`<@${bots[0].userId}>`)).toBeFalsy();
+				expect(mainResponse.embeds.at(0).description.includes(`<@${bots[1].userId}> - :crown:`)).toBeTruthy();
+				expect(mainResponse.embeds.at(0).description.includes(`<@${bots[2].userId}>`)).toBeTruthy();
 	
-				expect(
-					emojisResponse.embeds.at(0).description.includes(`<@${bots[0].userId}>`)
-				).toBeFalsy();
-				expect(
-					emojisResponse.embeds.at(0).description.includes(`<@${bots[1].userId}>`)
-				).toBeTruthy();
+				expect(emojisResponse.embeds.at(0).description.includes(`<@${bots[0].userId}>`)).toBeFalsy();
+				expect(emojisResponse.embeds.at(0).description.includes(`<@${bots[1].userId}>`)).toBeTruthy();
 			});
 		});
 	
@@ -267,7 +259,10 @@ describe("Game Stage", () => {
 
 	describe("Game Stage Start", () => {
 		it("changes the lobby embed title, sends empty board asking player 1 to play.", async () => {
-			
+			let [mainResponse, gameResponse] = await goToGame(2);
+			console.log(gameResponse.embeds.at(0).data.description);
+            expect(mainResponse.embeds.at(0).data.title).toBe("Connect4 game ongoing!") 
+            expect(gameResponse.embeds.at(0).data.description.includes(userBot[0])).toBeTruthy();
 		});
 	});
 

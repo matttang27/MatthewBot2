@@ -3,6 +3,7 @@ const path = require('node:path');
 const mode = process.env.NODE_ENV || 'test'; // Default to 'test' if not set
 require('dotenv').config({ path: `.env.${mode}` });
 const { Client, Collection, Events, GatewayIntentBits, Message, Guild, TextChannel, User } = require('discord.js');
+const Game = require('./commands/games/game');
 
 class MatthewClient extends Client {
     //Testing variables only
@@ -25,6 +26,9 @@ class MatthewClient extends Client {
         });
 
         this.commands = new Collection();
+
+        /** @type {Collection<Game>} */
+        this.games = new Collection();
 
         this.setupCommands();
         this.setupEvents();

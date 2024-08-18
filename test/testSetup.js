@@ -76,10 +76,19 @@ async function setup(client, BOT_COUNT) {
  */
 async function eachSetup(client,bots) {
     //what does tz even stand for???
-    client.testChannel = await client.testGuild.channels.create({
-        name: "tz ".concat(typeof expect === "undefined" ? "custom" : expect.getState().currentTestName).slice(0,100),
-    });
+
+    if (typeof expect === "undefined") {
+        client.testChannel = await client.testGuild.channels.create({
+            name: "custom test"
+        })
+    }
+    else {
+        client.testChannel = await client.testGuild.channels.create({
+            name: "tz ".concat(expect.getState().currentTestName).slice(0,100),
+        });
+    }
     
     bots.forEach(bot => bot.channelId = client.testChannel.id)
+    if (typeof expect !== "undefined") {await bots[0].sendMessage(expect.getState().currentTestName)};
 }
 module.exports = {setup, eachSetup};

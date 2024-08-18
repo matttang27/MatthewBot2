@@ -19,6 +19,7 @@ let response;
 const { setup, eachSetup } = require("@testSetup");
 
 const {goToOptionsCreator, goToOptionsBase} = require("@testHelpers");
+const Game = require("./game");
 
 let goToOptions;
 beforeAll(async () => {
@@ -48,6 +49,11 @@ describe("Lobby Stage", () => {
 					},
 				],
 			});
+			/** @type {Game} */
+			let game = client.games.last();
+
+			expect(game.players.at(0).user.id).toBe(bots[0].userId)
+			expect(game.players.size).toBe(1);
 		});
 	});
 
@@ -55,6 +61,10 @@ describe("Lobby Stage", () => {
 		it("adds user to player list if user not already in game", async () => {
 			await bots[0].sendCommand("testgame");
 			response = await client.waitForNextMessage();
+
+			/** @type {Game} */
+			let game = client.games.last();
+
 			await bots[1].clickButton("Join / Leave", response);
 			response = await client.waitForMessage({
 				embeds: [{ data: { title: "game game created! [2/4]" } }],
@@ -62,10 +72,16 @@ describe("Lobby Stage", () => {
 			});
 
 			expect(response.embeds.at(0).data.title.includes(`<@${bots[1].userId}>`));
+			expect(game.players.at(1).user.id).toBe(bots[1].userId)
+			expect(game.players.size).toBe(2);
 		});
 
 		it("removes user from player list if user already in game", async () => {
 			await bots[0].sendCommand("testgame");
+
+			/** @type {Game} */
+			let game = client.games.last();
+
 			response = await client.waitForNextMessage();
 			await bots[1].clickButton("Join / Leave", response);
 			response = await client.waitForNextMessage();
@@ -74,10 +90,14 @@ describe("Lobby Stage", () => {
 				embeds: [{ data: { title: "game game created! [1/4]" } }],
 				components: true,
 			});
+
+			expect(game.players.at(0).user.id).toBe(bots[0].userId)
+			expect(game.players.size).toBe(1);
 		});
 	});
 
 	describe("Owner Clicks Join/Leave", () => {
+		//TODO: add remaning game checks
 		it("removes owner from players and sets next player to owner if at least 2 players in lobby", async () => {
 			await bots[0].sendCommand("testgame");
 			response = await client.waitForNextMessage();
