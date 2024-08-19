@@ -56,7 +56,7 @@ async function goToEmojis(num_players) {
 async function goToGame(num_players) {
 	let [mainEdit, emojiResponse] = await goToEmojis(num_players);
 
-	await bots[0].clickButton("Continue", optionsResponse);
+	await bots[0].clickButton("Continue", emojisResponse);
     [mainEdit, emojiDelete, gameResponse] = await Promise.all([
         client.waitForMessageUpdate({embeds: [{ data: { title: "Connect4 game ongoing!" } }]}),
 		client.waitForMessageDelete({embeds: [{ data: { title: "Set emojis" } }]}),

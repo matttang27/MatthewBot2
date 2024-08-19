@@ -64,9 +64,9 @@ class Game {
 
         /**
          * The embed in the main response message
-         * @type {Embed}
+         * @type {EmbedBuilder}
          */
-        this.mainEmbed = new EmbedBuilder.setColor("Green")
+        this.mainEmbed = new EmbedBuilder().setColor("Green")
 
         /**
          * @type {Date}
@@ -100,27 +100,27 @@ class Game {
             {
                 name: "lobby",
                 embedTitle: "game created!",
-                execute: this.lobby
+                execute: () => this.lobby()
             },
             {
                 name: "settings",
                 embedTitle: "game configuring...",
-                execute: this.lobby
+                execute: () => this.inputSettings()
             },
             {
                 name: "setup",
                 embedTitle: "game setting up...",
-                execute: this.inputSettings,
+                execute: () => this.setup(),
             },
             {
                 name: "ingame",
                 embedTitle: "game ongoing!",
-                execute: this.playGame
+                execute: () => this.playGame()
             },
             {
                 name: "winScreen",
                 embedTitle: "game finished",
-                execute: this.winScreen
+                execute: () => this.winScreen()
             }
         ]
 
@@ -139,9 +139,9 @@ class Game {
 
             this.client.games.set(this.client.games.size,this);
 
-            for (i in this.stages) {
+            for (var i in this.stages) {
                 this.stage = this.stages[i].name;
-                this.mainEmbed.title = this.stages[i].lobbyTitle;
+                this.mainEmbed.setTitle(`${this.properties.gameName} ${this.stages[i].embedTitle}`)
                 await this.response.edit({embeds: [this.mainEmbed]});
                 await this.stages[i].execute();
             }
@@ -154,7 +154,7 @@ class Game {
             
 
             if (! (err in this.errMessages)) {
-                console.log(`${err} was not found in errMessages`);
+                console.error(err);
                 return;
                 
             }
@@ -192,7 +192,7 @@ class Game {
      */
     async lobby() {
         return new Promise(async (resolve, reject) => {
-            this.mainEmbed.title = `${this.properties.gameName} game created! [${this.players.size}/${this.properties.maxPlayers}]`
+            this.mainEmbed.setTitle(`${this.properties.gameName} game created! [${this.players.size}/${this.properties.maxPlayers}]`);
             this.updateLobby();
 
             const start = new ButtonBuilder()

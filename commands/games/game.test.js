@@ -37,7 +37,7 @@ describe("Lobby Stage", () => {
 	describe("Game Command", () => {
 		it("creates a lobby with player list and buttons", async () => {
 			await bots[0].sendCommand("testgame");
-			let response = await client.waitForMessage({
+			let response = await client.waitForMessageUpdate({
 				embeds: [{ data: { title: "game game created! [1/4]" } }],
 				components: [
 					{
@@ -60,17 +60,16 @@ describe("Lobby Stage", () => {
 	describe("Other Clicks Join/Leave", () => {
 		it("adds user to player list if user not already in game", async () => {
 			await bots[0].sendCommand("testgame");
-			response = await client.waitForNextMessage();
+			response = await client.waitForMessageUpdate(true);
 
 			/** @type {Game} */
 			let game = client.games.last();
 
 			await bots[1].clickButton("Join / Leave", response);
-			response = await client.waitForMessage({
+			response = await client.waitForMessageUpdate({
 				embeds: [{ data: { title: "game game created! [2/4]" } }],
 				components: true,
 			});
-
 			expect(response.embeds.at(0).data.title.includes(`<@${bots[1].userId}>`));
 			expect(game.players.at(1).user.id).toBe(bots[1].userId)
 			expect(game.players.size).toBe(2);
@@ -79,14 +78,15 @@ describe("Lobby Stage", () => {
 		it("removes user from player list if user already in game", async () => {
 			await bots[0].sendCommand("testgame");
 
+			response = await client.waitForMessageUpdate(true);
+
 			/** @type {Game} */
 			let game = client.games.last();
 
-			response = await client.waitForNextMessage();
 			await bots[1].clickButton("Join / Leave", response);
-			response = await client.waitForNextMessage();
+			response = await client.waitForMessageUpdate(true);
 			await bots[1].clickButton("Join / Leave", response);
-			response = await client.waitForMessage({
+			response = await client.waitForMessageUpdate({
 				embeds: [{ data: { title: "game game created! [1/4]" } }],
 				components: true,
 			});

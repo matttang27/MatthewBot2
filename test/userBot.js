@@ -192,8 +192,8 @@ class UserBot {
    */
   async clickButton(buttonName, message) {
     
-    if (this.page.url() != `https://discord.com/channels/${message.guild.id}/${message.channel.id}`) {
-      await this.page.goto(`https://discord.com/channels/${message.guild.id}/${message.channel.id}`);
+    if (this.page.url() != `https://discord.com/channels/${message.guildId}/${message.channelId}`) {
+      await this.page.goto(`https://discord.com/channels/${message.guildId}/${message.channelId}`);
     }
     
     await this.page.waitForSelector(`[id="message-accessories-${message.id}"]`)
@@ -233,8 +233,9 @@ class UserBot {
       await this.page.goto(`https://discord.com/channels/${message.guildId}/${message.channelId}`);
     }
 
-    let messageElement = await this.page.waitForSelector(`#chat-messages-${message.channelId}-${message.id}`)
-    await messageElement.hover();
+    let messageElement = await this.page.waitForSelector(`#chat-messages-${message.channelId}-${message.id} > :first-child`)
+    await messageElement.focus();
+    await new Promise((r) => setTimeout(r, 1000));
     
     let addReactionButton = await this.page.waitForSelector(`#chat-messages-${message.channelId}-${message.id} [aria-label="Add Reaction"]`, {timeout: 5000})
     await new Promise((r) => setTimeout(r, 1000));

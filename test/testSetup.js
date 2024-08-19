@@ -9,7 +9,7 @@ const deployCommands = require("@root/deploy-commands.js")
  * 
  * @param {MatthewClient} client 
  * @param {Number} BOT_COUNT 
- * @returns {UserBot[]}
+ * @returns {Promise<UserBot[]>}
  */
 async function setup(client, BOT_COUNT) {
     client.login();

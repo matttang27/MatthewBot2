@@ -1,5 +1,5 @@
 {
-    "jest.jestCommandLine": "jest --runInBand", //for run test
+    "jest.jestCommandLine": "jest --runInBand --detectOpenHandles", //for run test
     //"jest.jestCommandLine": "./node_modules/jest/bin/jest.js --runInBand", //for debug test
     "jest.rootPath": "."
 }

@@ -31,3 +31,7 @@ describe("mocktest command", () => {
 		expect(response.content).toBe("Hello");
 	}, 100_000);
 });
+
+/*afterAll(async () => {
+	await client.destroy();
+})*/

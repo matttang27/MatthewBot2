@@ -19,6 +19,9 @@
       ],
       "@userBot": [
         "./test/userBot.js"
+      ],
+      "@testSetup": [
+        "./test/testSetup.js"
       ]
     }
   },

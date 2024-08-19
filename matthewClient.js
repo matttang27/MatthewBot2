@@ -114,7 +114,7 @@ class MatthewClient extends Client {
      * this.user.id | options.userId
      * 5000 | options.timeLimit
      * this.testChannel.id | options.channelId
-     * @returns {Message | Message[]} either the found message or the array of messages checked.
+     * @returns {Promise<Message | Error>} either the found message or the array of messages checked.
      */
     async waitForMessage({
         content = "",
@@ -128,7 +128,7 @@ class MatthewClient extends Client {
         
         let client = this;
         
-        return await new Promise((resolve, reject) => {
+        return new Promise((resolve, reject) => {
             let checkedMessages = []
 
             const timeout = setTimeout(() => {
@@ -255,15 +255,15 @@ class MatthewClient extends Client {
         return mockMessage
     }
     /** @returns {Promise<Message>} */
-    async waitForMessageCreate(mockObject,base=false,timeLimit=5000) {
+    async waitForMessageCreate(mockObject={},base=false,timeLimit=5000) {
         return this.waitForEvent(Events.MessageCreate,(m) => m, this.editMockMessage(mockObject,base), timeLimit);
     }
     /** @returns {Promise<Message>} */
-    async waitForMessageUpdate(mockObject,base=false,timeLimit=5000) {
+    async waitForMessageUpdate(mockObject={},base=false,timeLimit=5000) {
         return this.waitForEvent(Events.MessageUpdate,(oM,nM) => nM, this.editMockMessage(mockObject,base), timeLimit)
     }
     /** @returns {Promise<Message>} */
-    async waitForMessageDelete(mockObject,base=false,timeLimit=5000) {
+    async waitForMessageDelete(mockObject={},base=false,timeLimit=5000) {
         return this.waitForEvent(Events.MessageDelete,(m) => m, this.editMockMessage(mockObject,base), timeLimit)
     }
     /** @returns {Promise<[MessageReaction, User]>} */
@@ -277,7 +277,7 @@ class MatthewClient extends Client {
      * @param {Number} timeLimit 
      * @returns {Promise<[MessageReaction, User]>}
      */
-    async waitForReactionRemove(mockObject,base=false,timeLimit=5000) {
+    async waitForReactionRemove(mockObject={},base=false,timeLimit=5000) {
         return this.waitForEvent(Events.MessageReactionRemove,(r,u) => [r,u], mockObject, timeLimit);
     }
     
