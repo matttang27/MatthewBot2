@@ -27,7 +27,7 @@ class MatthewClient extends Client {
 
         this.commands = new Collection();
 
-        /** @type {Collection<Game>} */
+        /** @type {Collection<number,Game>} */
         this.games = new Collection();
 
         this.setupCommands();

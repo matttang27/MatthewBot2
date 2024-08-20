@@ -7,6 +7,12 @@ const client = new MatthewClient();
 
 const UserBot = require("@userBot");
 const { Message, InteractionResponse } = require("discord.js");
+
+const { setup, eachSetup } = require("@testSetup");
+
+const {goToLobbyCreator, goToOptionsCreator} = require("@testHelpers");
+const Game = require("./game");
+
 const BOT_COUNT = 3;
 var GAME_COMMAND = "testgame";
 
@@ -16,14 +22,20 @@ let bots = [];
 /** @type {Message} */
 let response;
 
-const { setup, eachSetup } = require("@testSetup");
+/** @type {Game} */
+let game;
 
-const {goToOptionsCreator, goToOptionsBase} = require("@testHelpers");
-const Game = require("./game");
 
+
+
+/** @type {{() => Promise<[Message, Game]>}} */
+let goToLobby;
+/** @type {{(numPlayers: number, options?: Object) => Promise<[Message, Game]>}} */
 let goToOptions;
+
 beforeAll(async () => {
 	bots = await setup(client, BOT_COUNT);
+	goToLobby = goToLobbyCreator(GAME_COMMAND, bots, client);
 	goToOptions = goToOptionsCreator(GAME_COMMAND, bots, client);
 }, 100_000);
 
@@ -36,164 +48,116 @@ beforeEach(async () => {
 describe("Lobby Stage", () => {
 	describe("Game Command", () => {
 		it("creates a lobby with player list and buttons", async () => {
-			await bots[0].sendCommand("testgame");
-			let response = await client.waitForMessageUpdate({
-				embeds: [{ data: { title: "game game created! [1/4]" } }],
-				components: [
-					{
-						components: [
-							{ data: { label: "Start" } },
-							{ data: { label: "Join / Leave" } },
-							{ data: { label: "Cancel" } },
-						],
-					},
-				],
-			});
-			/** @type {Game} */
-			let game = client.games.last();
+			let [response, game] = await goToLobby();
 
 			expect(game.players.at(0).user.id).toBe(bots[0].userId)
 			expect(game.players.size).toBe(1);
+			expect(response.embeds.at(0).title === "game game created! [1/4]")
+			expect(response.components[0].components.some(c => c.data.label === "Start")).toBeTruthy();
+			expect(response.components[0].components.some(c => c.data.label === "Join / Leave")).toBeTruthy();
+			expect(response.components[0].components.some(c => c.data.label === "Cancel")).toBeTruthy();
 		});
 	});
 
 	describe("Other Clicks Join/Leave", () => {
 		it("adds user to player list if user not already in game", async () => {
-			await bots[0].sendCommand("testgame");
-			response = await client.waitForMessageUpdate(true);
-
-			/** @type {Game} */
-			let game = client.games.last();
+			let [response, game] = await goToLobby();
 
 			await bots[1].clickButton("Join / Leave", response);
-			response = await client.waitForMessageUpdate({
-				embeds: [{ data: { title: "game game created! [2/4]" } }],
-				components: true,
-			});
-			expect(response.embeds.at(0).data.title.includes(`<@${bots[1].userId}>`));
+			response = await client.waitForMessageUpdate(true);
+
+			expect(response.embeds.at(0).title).toBe("game game created! [2/4]")
+			expect(response.embeds.at(0).description.includes(`<@${bots[1].userId}>`)).toBeTruthy();
 			expect(game.players.at(1).user.id).toBe(bots[1].userId)
 			expect(game.players.size).toBe(2);
+
+			await bots[2].clickButton("Join / Leave", response);
+			response = await client.waitForMessageUpdate(true);
+
+			expect(response.embeds.at(0).title).toBe("game game created! [3/4]")
+			expect(response.embeds.at(0).description.includes(`<@${bots[2].userId}>`)).toBeTruthy();
+			expect(game.players.at(2).user.id).toBe(bots[2].userId)
+			expect(game.players.size).toBe(3);
 		});
 
 		it("removes user from player list if user already in game", async () => {
-			await bots[0].sendCommand("testgame");
-
-			response = await client.waitForMessageUpdate(true);
-
-			/** @type {Game} */
-			let game = client.games.last();
+			let [response, game] = await goToLobby();
 
 			await bots[1].clickButton("Join / Leave", response);
 			response = await client.waitForMessageUpdate(true);
-			await bots[1].clickButton("Join / Leave", response);
-			response = await client.waitForMessageUpdate({
-				embeds: [{ data: { title: "game game created! [1/4]" } }],
-				components: true,
-			});
 
+			await bots[1].clickButton("Join / Leave", response);
+			response = await client.waitForMessageUpdate(true);
+
+			expect(response.embeds.at(0).title).toBe("game game created! [1/4]")
+			expect(response.embeds.at(0).description.includes(`<@${bots[2].userId}>`)).toBeFalsy();
 			expect(game.players.at(0).user.id).toBe(bots[0].userId)
 			expect(game.players.size).toBe(1);
 		});
 	});
 
 	describe("Owner Clicks Join/Leave", () => {
-		//TODO: add remaning game checks
 		it("removes owner from players and sets next player to owner if at least 2 players in lobby", async () => {
-			await bots[0].sendCommand("testgame");
-			response = await client.waitForNextMessage();
-			await bots[1].clickButton("Join / Leave", response);
-			response = await client.waitForNextMessage();
-			await bots[0].clickButton("Join / Leave", response);
-			response = await client.waitForMessage({
-				embeds: [{}],
-				components: true,
-			});
+			let [response, game] = await goToLobby();
 
-			if (
-				!response.embeds.at(0).data.description.includes(`<@${bots[1].userId}> - :crown:`)
-			) {
-				console.log(response.embeds.at(0).data.description);
-			}
+			await bots[1].clickButton("Join / Leave", response);
+			response = await client.waitForMessageUpdate(true);
+			await bots[0].clickButton("Join / Leave", response);
+			response = await client.waitForMessageUpdate(true);
 
 			expect(response.embeds.at(0).data.title).toBe("game game created! [1/4]");
 			expect(response.embeds.at(0).data.description).toBe(
 				`<@${bots[1].userId}> - :crown:`
 			);
+			expect(game.players.at(0).user.id).toBe(bots[1].userId);
+			expect(game.players.size).toBe(1);
 		});
 
-		it("cancels game if only owner in lobby", async () => {
-			await bots[0].sendCommand("testgame");
-			response = await client.waitForNextMessage();
-			await bots[0].clickButton("Join / Leave", response);
-			response = await client.waitForMessage({
-				embeds: [{}],
-				components: [],
-			});
-
-			expect(response.embeds.at(0).data.title).toBe("game game cancelled");
-		});
+		
 	});
 
 	describe("Owner Clicks Start", () => {
 		it("transitions to Options Stage if minimum players joined", async () => {
-			await bots[0].sendCommand("testgame");
-			response = await client.waitForMessageCreate(true);
+			let [response, game] = await goToLobby();
+
 			await bots[1].clickButton("Join / Leave", response);
 			oldResponse = await client.waitForMessageUpdate(true);
 			await bots[0].clickButton("Start", oldResponse);
 
-			[response, optionsResponse] = await Promise.all([
-				client.waitForMessageUpdate({
-					embeds: [{ data: { title: "game game configuring..." } }],
-					components: [],
-				}),
-				client.waitForMessageUpdate({
-					embeds: [{ data: { title: "Options" } }],
-					components: [],
-				}),
-			]);
+			response = await client.waitForMessageUpdate(true);
 
 			//player list should not change
-
-			expect(response.embeds.at(0).description).toBe(
-				oldResponse.embeds.at(0).description
-			);
-			expect(
-				optionsResponse.embeds.at(0).description.includes("1. Example setting - ")
-			).toBeTruthy();
-			expect(
-				optionsResponse.embeds
-					.at(0)
-					.description.includes(`<@${bots[0].userId}>, change settings`)
-			).toBeTruthy();
+			expect(response.embeds.at(0).title).toBe("game game configuring...");
+			expect(response.embeds.at(0).description).toBe(oldResponse.embeds.at(0).description)
+			expect(response.embeds.at(1).description.includes("1. Example setting - ")).toBeTruthy();
+			expect(response.embeds.at(1).description.includes(`<@${bots[0].userId}>, change settings`)).toBeTruthy();
+			expect(game.players.size).toBe(2);
+			expect(response.components[0].components.some(c => c.data.label === "Continue")).toBeTruthy();
+			expect(response.components[0].components.some(c => c.data.label === "Leave Game")).toBeTruthy();
+			expect(response.components[0].components.some(c => c.data.label === "Cancel Game")).toBeTruthy();
 		});
 
 		it("shows error if fewer than minimum players", async () => {
-			await bots[0].sendCommand("testgame");
-			response = await client.waitForNextMessage();
-			await bots[0].clickButton("Start", response);
-			response = await client.waitForMessage({
-				embeds: [{}],
-				components: [],
-			});
+			let [response, game] = await goToLobby();
 
-			expect(response.embeds.at(0).description).toBe(
+			await bots[0].clickButton("Start", response);
+			let errorResponse = await client.waitForMessageCreate(true);
+
+			expect(errorResponse.embeds.at(0).description).toBe(
 				"Not enough players to start. (Minimum 2 players)"
 			);
+			expect(game.players.size).toBe(1);
 		});
 	});
 
 	describe("Other Clicks Start", () => {
 		it("shows error for not being owner", async () => {
-			await bots[0].sendCommand("testgame");
-			response = await client.waitForNextMessage();
+			let [response, game] = await goToLobby();
+			
 			await bots[1].clickButton("Start", response);
-			response = await client.waitForMessage({
-				embeds: [{}],
-				components: [],
-			});
+			let errorResponse = await client.waitForMessageCreate(true);
 
-			expect(response.embeds.at(0).description).toBe(
+			expect(errorResponse.embeds.at(0).description).toBe(
 				"You are not the owner of this lobby!"
 			);
 		});
@@ -201,27 +165,27 @@ describe("Lobby Stage", () => {
 
 	describe("Owner Clicks Cancel", () => {
 		it("closes lobby and does not start game", async () => {
-			await bots[0].sendCommand("testgame");
-			response = await client.waitForMessageCreate(true);
+			let [response, game] = await goToLobby();
+
 			await bots[0].clickButton("Cancel", response);
-			response = await client.waitForMessageUpdate({ embeds: [{}] }, true);
+			response = await client.waitForMessageUpdate({components: []});
 
 			expect(response.embeds.at(0).title).toBe("game game cancelled");
 			expect(response.embeds.at(0).description).toBe("Blame the leader");
+			expect(game.players.size).toBe(1);
 		});
 	});
 
 	describe("Other Clicks Cancel", () => {
 		it("shows error for not being owner", async () => {
-			await bots[0].sendCommand("testgame");
-			response = await client.waitForNextMessage();
-			await bots[1].clickButton("Cancel", response);
-			response = await client.waitForMessage({
-				embeds: [{}],
-				components: [],
-			});
+			let [response, game] = await goToLobby();
 
-			expect(response.embeds.at(0).description == "You are not the owner of this lobby!");
+			await bots[1].clickButton("Cancel", response);
+			errorResponse = await client.waitForMessageCreate(true);
+
+			expect(errorResponse.embeds.at(0).description).toBe(
+				"You are not the owner of this lobby!"
+			);
 		});
 	});
 });
@@ -229,166 +193,133 @@ describe("Lobby Stage", () => {
 describe("Options Stage", () => {
 	describe("Options Stage Start", () => {
 		it("changes lobby embed title, removes buttons, and sends new message with options list and buttons", async () => {
-			let [response, optionsResponse] = await goToOptions(3);
+			let [response, game] = await goToOptions(3);
 			
 			expect(response.embeds.at(0).title).toBe("game game configuring...");
-			expect(response.components.length).toBe(0);
-			expect(optionsResponse.components.at(0).components.length).toBe(3);
-			expect(optionsResponse.embeds.at(0).title).toBe("Options");
+			expect(response.components.length).toBe(1);
+			expect(response.components.at(0).components.length).toBe(3);
+			expect(response.embeds.at(1).title).toBe("Options");
 			expect(
-				optionsResponse.embeds.at(0).description.includes(`<@${bots[0].userId}>`)
+				response.embeds.at(1).description.includes(`<@${bots[0].userId}>`)
 			).toBeTruthy();
 		});
 	});
 
 	describe("Owner Clicks Leave", () => {
 		it("cancels game if less than 3 players and deletes options message", async () => {
-			let [mainResponse, optionsResponse] = await goToOptions(2);
-			await bots[0].clickButton("Leave Game", optionsResponse);
-			[mainResponse, optionsResponse] = await Promise.all([
-				client.waitForMessageUpdate(
-					{ embeds: [{ data: { title: "game game cancelled" } }] },
-					true
-				),
-				client.waitForMessageDelete({
-					embeds: [{ data: { title: "Options" } }],
-				}),
-			]);
+			let [response, game] = await goToOptions(2);
+
+			await bots[0].clickButton("Leave Game", response);
+			response = await client.waitForMessageUpdate(true);
+			
+			expect(response.embeds.length).toBe(1);
+			expect(response.embeds.at(0).title).toBe("game game cancelled");
 
 			
 		});
 
-		it("removes owner from players, sets next player as owner, and updates options message if at least 3 players", async () => {
-			let [mainResponse, optionsResponse] = await goToOptions(3);
-			await bots[0].clickButton("Leave Game", optionsResponse);
-			[mainResponse, optionsResponse] = await Promise.all([
-				client.waitForMessageUpdate(
-					{
-						embeds: [{ data: { title: "game game configuring..." } }],
-					},
-					true
-				),
-				client.waitForMessageUpdate({
-					embeds: [{ data: { title: "Options" } }],
-				}),
-			]);
+		it("removes owner from players, sets next player as owner, and updates message if at least 3 players", async () => {
+			let [response, game] = await goToOptions(3);
 
+			await bots[0].clickButton("Leave Game", response);
+			response = await client.waitForMessageUpdate(true);
+			
 			expect(
-				mainResponse.embeds.at(0).description.includes(`<@${bots[0].userId}>`)
+				response.embeds.at(0).description.includes(`<@${bots[0].userId}>`)
 			).toBeFalsy();
 			expect(
-				mainResponse.embeds.at(0).description.includes(`<@${bots[1].userId}> - :crown:`)
+				response.embeds.at(0).description.includes(`<@${bots[1].userId}> - :crown:`)
 			).toBeTruthy();
 			expect(
-				mainResponse.embeds.at(0).description.includes(`<@${bots[2].userId}>`)
+				response.embeds.at(0).description.includes(`<@${bots[2].userId}>`)
 			).toBeTruthy();
 
 			expect(
-				optionsResponse.embeds.at(0).description.includes(`<@${bots[0].userId}>`)
+				response.embeds.at(1).description.includes(`<@${bots[0].userId}>`)
 			).toBeFalsy();
 			expect(
-				optionsResponse.embeds.at(0).description.includes(`<@${bots[1].userId}>`)
+				response.embeds.at(1).description.includes(`<@${bots[1].userId}>`)
 			).toBeTruthy();
 		});
 	});
 
 	describe("Other Clicks Leave", () => {
-		it("cancels game if less than 3 players and deletes options message", async () => {
-			let [mainResponse, optionsResponse] = await goToOptions(2);
-			await bots[1].clickButton("Leave Game", optionsResponse);
-			[mainResponse, optionsResponse] = await Promise.all([
-				client.waitForMessageUpdate(
-					{ embeds: [{ data: { title: "game game cancelled" } }] },
-					true
-				),
-				client.waitForMessageDelete({
-					embeds: [{ data: { title: "Options" } }],
-				}),
-			]);
+		it("cancels game if less than 3 players and removes options embed", async () => {
+			let [response, game] = await goToOptions(2);
+
+			await bots[1].clickButton("Leave Game", response);
+			response = await client.waitForMessageUpdate(true);
+			
+			expect(response.embeds.length).toBe(1);
+			expect(response.embeds.at(0).title).toBe("game game cancelled");
 		});
 
 		it("updates lobby message if at least 3 players", async () => {
-			let [mainResponse, optionsResponse] = await goToOptions(3);
-			bots[1].clickButton("Leave Game", optionsResponse);
+			let [response, game] = await goToOptions(3);
 
-			mainResponse = await client.waitForMessageUpdate(
-				{ embeds: [{ data: { title: "game game configuring..." } }] },
-				true
-			);
-
+			await bots[1].clickButton("Leave Game", response);
+			response = await client.waitForMessageUpdate(true);
+			
 			expect(
-				mainResponse.embeds.at(0).description.includes(`<@${bots[0].userId}> - :crown:`)
+				response.embeds.at(0).description.includes(`<@${bots[0].userId}>`)
 			).toBeTruthy();
 			expect(
-				mainResponse.embeds.at(0).description.includes(`<@${bots[1].userId}> - :crown:`)
+				response.embeds.at(0).description.includes(`<@${bots[1].userId}> - :crown:`)
 			).toBeFalsy();
 			expect(
-				mainResponse.embeds.at(0).description.includes(`<@${bots[2].userId}>`)
+				response.embeds.at(0).description.includes(`<@${bots[2].userId}>`)
 			).toBeTruthy();
 		});
 	});
 
 	describe("Owner Clicks Continue", () => {
-		it("deletes message and transitions to setup stage", async () => {
-			let [mainResponse, optionsResponse] = await goToOptions(3);
-			await bots[0].clickButton("Continue", optionsResponse);
-			let [setupResponse, optionsDelete] = await Promise.all([
-				client.waitForMessageUpdate(
-					{
-						embeds: [{ data: { title: "game game setting up..." } }],
-					},
-					true
-				),
-				client.waitForMessageDelete({
-					embeds: [{ data: { title: "Options" } }],
-				}),
-			]);
+		it("removes embed and transitions to next stage", async () => {
+			let [response, game] = await goToOptions(3);
+
+			await bots[0].clickButton("Continue", response);
+			response = await client.waitForMessageUpdate(true);
+
+			expect(response.embeds.length).toBe(2);
+			expect(response.embeds.at(0).title).toBe("game game ongoing!");
+			expect(response.embeds.at(1).title).toBe("Game");
+			expect(response.embeds.at(1).description).toBe("Ending in 5 seconds...");
 		});
 	});
 
 	describe("Other Clicks Continue", () => {
 		it("shows error for not being owner", async () => {
-			let [mainResponse, optionsResponse] = await goToOptions(2);
-			await bots[1].clickButton("Continue", optionsResponse);
+			let [response, game] = await goToOptions(3);
 
-			response = await client.waitForMessageCreate(true);
+			await bots[1].clickButton("Continue", response);
+			let errorResponse = await client.waitForMessageCreate(true);
 
-			expect(response.embeds.at(0).description).toBe(
+			expect(errorResponse.embeds.at(0).description).toBe(
 				"You are not the owner of this lobby!"
 			);
 		});
 	});
 
 	describe("Owner Clicks Cancel", () => {
-		it("closes lobby, option message deleted", async () => {
-			let [mainResponse, optionsResponse] = await goToOptions(2);
-			await bots[0].clickButton("Cancel Game", optionsResponse);
-			[mainResponse, optionsResponse] = await Promise.all([
-				client.waitForMessageUpdate(
-					{ embeds: [{ data: { title: "game game cancelled" } }] },
-					true
-				),
-				client.waitForMessageDelete({
-					embeds: [{ data: { title: "Options" } }],
-				}),
-			]);
-
-			expect(mainResponse.embeds.at(0).description).toBe("Blame the leader");
+		it("closes lobby, options embed removed", async () => {
+			let [response, game] = await goToOptions(3);
+			
+			await bots[0].clickButton("Cancel Game", response);
+			response = await client.waitForMessageUpdate(true);
+			
+			expect(response.embeds.length).toBe(1);
+			expect(response.embeds.at(0).title).toBe("game game cancelled");
+			expect(response.embeds.at(0).description).toBe("Blame the leader");
 		});
 	});
 
 	describe("Other Clicks Cancel", () => {
 		it("shows error for not being owner", async () => {
-			let [mainResponse, optionsResponse] = await goToOptions(2);
-			bots[1].clickButton("Cancel Game", optionsResponse);
+			let [response, game] = await goToOptions(3);
 
-			response = await client.waitForMessageCreate(true);
+			await bots[1].clickButton("Cancel Game", response);
+			let errorResponse = await client.waitForMessageCreate(true);
 
-			expect(response.embeds.at(0).description).toBe(
-				"You are not the owner of this lobby!"
-			);
-
-			expect(response.embeds.at(0).description).toBe(
+			expect(errorResponse.embeds.at(0).description).toBe(
 				"You are not the owner of this lobby!"
 			);
 		});
@@ -396,45 +327,39 @@ describe("Options Stage", () => {
 
 	describe("Owner Types Value", () => {
 		it("deletes owner message and edits to show option if no option selected and valid value", async () => {
-			let [mainResponse, optionsResponse] = await goToOptions(2);
+			let [response, game] = await goToOptions(3);
 			await bots[0].sendMessage("1");
 			let ownerDelete;
-			[ownerDelete, optionsResponse] = await Promise.all([
-				client.waitForMessageDelete({ author: { id: bots[0].userId } }),
-				client.waitForMessageUpdate(
-					{
-						embeds: [{ data: { title: "Editing Example setting" } }],
-					},
-					true
-				),
+			[ownerDelete, response] = await Promise.all([
+				client.waitForMessageDelete({author: { id: bots[0].userId }}),
+				client.waitForMessageUpdate({}),
 			]);
 
-			expect(optionsResponse.embeds.at(0).description).toBe("This is an example");
+			expect(response.embeds.at(1).title).toBe("Editing Example setting");
+			expect(response.embeds.at(1).description).toBe("This is an example");
 		});
 
 		it("deletes owner message and edits back to option list if option selected and valid value", async () => {
-			let [mainResponse, optionsResponse] = await goToOptions(2);
+			let [response, game] = await goToOptions(3);
 			bots[0].sendMessage("1");
 			let ownerDelete;
-			[ownerDelete, optionsResponse] = await Promise.all([
-				client.waitForMessageDelete({}),
+			[ownerDelete, response] = await Promise.all([
+				client.waitForMessageDelete({content: "1", author: {id: bots[0].userId}},true),
 				client.waitForMessageUpdate(true),
 			]);
 			bots[0].sendMessage("5");
-			[ownerDelete, optionsResponse] = await Promise.all([
+			[ownerDelete, response] = await Promise.all([
 				client.waitForMessageDelete({}),
-				client.waitForMessageUpdate({
-					embeds: [{ data: { title: "Options" } }],
-				}),
+				client.waitForMessageUpdate(true),
 			]);
 
 			expect(
-				optionsResponse.embeds.at(0).description.includes("Example setting - **5**")
+				response.embeds.at(1).description.includes("Example setting - **5**")
 			).toBeTruthy();
 		});
  
 		it("ignores invalid value", async () => {
-			let [mainResponse, optionsResponse] = await goToOptions(2);
+			let [response, game] = await goToOptions(3);
 
 			bots[0].sendMessage("a");
 			try {
@@ -452,7 +377,7 @@ describe("Options Stage", () => {
 
 			bots[0].sendMessage("1");
 			let ownerDelete;
-			[ownerDelete, optionsResponse] = await Promise.all([
+			[ownerDelete, response] = await Promise.all([
 				client.waitForMessageDelete({}),
 				client.waitForMessageUpdate(true),
 			]);
@@ -468,7 +393,7 @@ describe("Options Stage", () => {
 
 	describe("Other Types Value", () => {
 		it("ignores value", async () => {
-			let [mainResponse, optionsResponse] = await goToOptions(2);
+			let [response, game] = await goToOptions(3);
 			bots[1].sendMessage("1");
 			//no messageUpdate should be sent
 			try {
@@ -479,5 +404,3 @@ describe("Options Stage", () => {
 		});
 	});
 });
-
-module.exports = goToOptionsCreator;
