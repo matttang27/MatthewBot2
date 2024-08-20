@@ -23,6 +23,7 @@ async function setup(client, BOT_COUNT) {
     client.login();
 
     await new Promise((resolve, reject) => {
+        setTimeout(reject, 5000);
         client.once("error", reject);
         client.once("ready", () => {
             client.off("error", reject);
@@ -37,7 +38,7 @@ async function setup(client, BOT_COUNT) {
     let channels = await client.testGuild.channels.fetch();
 
     for (var channel of channels) {
-        if (channel[1].name.startsWith("tz")) await channel[1].delete();
+        if (channel[1].name.startsWith("tz") || channel[1].name.startsWith("custom")) { await channel[1].delete()};
     }
 
     bots = [];

@@ -15,12 +15,14 @@ let bots = [];
 /** @type {Message} */
 let response;
 
-const {goToOptionsCreator, goToOptionsBase} = require("@testHelpers");
+const {goToOptionsCreator} = require("@testHelpers");
 
 
 const { setup, eachSetup } = require("@testSetup");
+const Game = require("../game");
+const Connect4Game = require("./connect4game");
 
-/** @type {function(number): Promise<[Message, Message]>} */
+/** @type {function(number): Promise<[Message, Connect4Game]>} */
 let goToOptions;
 
 beforeAll(async () => {
@@ -32,69 +34,98 @@ beforeEach(async () => {
 	await eachSetup(client, bots);
 });
 
+/**
+ * 
+ * @param {number} numPlayers 
+ * @param {Object<string,any>} [options={}]
+ * @param {Object<string,string>} [emojis={}]
+ * @returns {Promise<[Message,Connect4Game]>}
+ */
+async function goToConnect4Emojis(numPlayers,options={},emojis={}) {
+	try {
+		let [response, game] = await goToOptions(numPlayers, options);
 
+		await bots[0].clickButton("Continue", response);
+		response = await client.waitForMessageUpdate(true);
+
+		for (player in emojis) {
+			if (! game.players.has(player)) {throw Error(`${player} not in player list`)};
+			game.players.get(player).other.emoji = emojis[player];
+		}
+
+		await game.editEmojiEmbed(true);
+
+		return [response, game];
+	} catch (err) {
+		console.error(err);
+		return [err, "bleh"];
+	}
+}
 
 /**
  * 
- * @param {Number} num_players 
- * @returns {[]}
+ * @param {Number} numPlayers 
+ * @param {{string: any}} options
+ * @param {{string: string}} emojis
+ * @returns {Promise<[Message,Connect4Game]>} the message and the created connect4game.
  */
-async function goToEmojis(num_players) {
-    let [response, optionsResponse] = await goToOptions(num_players);
+async function goToConnect4Game(numPlayers, options={}, emojis={}) {
+	try {
+		let [response, game] = await goToConnect4Emojis(numPlayers, options,);
+		await bots[0].clickButton("Continue", response);
+		response = await client.waitForMessageUpdate(true);
 
-    await bots[0].clickButton("Continue", optionsResponse);
-    let [mainEdit, emojiResponse, optionsDelete] = await Promise.all([
-        client.waitForMessageUpdate({embeds: [{ data: { title: "Connect4 game setting up..." } }]}),
-        client.waitForMessageUpdate({embeds: [{ data: { title: "Set emojis" }}]}),
-        client.waitForMessageDelete({embeds: [{ data: { title: "Options" }}],
-        }),
-    ]);
-
-    return [mainEdit, emojiResponse]
+		return [response, game];
+	}
+	catch (err) {
+		console.error(err);
+		return [err,"bleh"]
+	}
+    
 }
 
-async function goToGame(num_players) {
-	let [mainEdit, emojiResponse] = await goToEmojis(num_players);
-
-	await bots[0].clickButton("Continue", emojisResponse);
-    [mainEdit, emojiDelete, gameResponse] = await Promise.all([
-        client.waitForMessageUpdate({embeds: [{ data: { title: "Connect4 game ongoing!" } }]}),
-		client.waitForMessageDelete({embeds: [{ data: { title: "Set emojis" } }]}),
-		client.waitForMessageCreate({embeds: [{}]})
-    ]);
-
-	return [mainEdit, gameResponse];
-}
 describe("Emojis Stage", () => {
+	describe("goToConnect4Emojis", () => {
+		it("sets default emojis if emojis argument is empty", async () => {
+			let [response,game] = await goToConnect4Emojis(2);
+			expect(response.embeds.at(0).title).toBe("Connect4 game setting emojis...") 
+            expect(response.embeds.at(1).title).toBe("Set emojis");
+			console.log(response.embeds.at(1).description);
+			expect(response.embeds.at(1).description.includes(`<@${bots[0].userId}>`))
+			expect(game.stage.name === "emojis");
+		})
 
-	describe("Emojis Stage Start", () => {
-		it("changes the lobby embed title and sets default emojis and sends a new message with the current emojis list and buttons", async () => {
-			let [mainResponse, emojiResponse] = await goToEmojis(2);
-			console.log(emojiResponse.embeds.at(0).data.description);
-            expect(mainResponse.embeds.at(0).data.title).toBe("Connect4 game setting up...") 
-            expect(emojiResponse.embeds.at(0).data.title).toBe("Set emojis");
-			
-		});
-	});
+		it("sets custom emojis for emoji arguments", async () => {
+			let [response,game] = await goToConnect4Emojis(3,{},{[bots[0].userId]:"🟢"});
+
+			expect(response.embeds.at(1).description.includes(`<@${bots[0].userId}> - 🟢`)).toBeTruthy();
+		})
+	})
 
 	describe("Player reacts emoji", () => {
-		it("removes reaction if the player picks a non-unique emoji", async () => {
-			let [mainResponse, emojiResponse] = await goToEmojis(3);
-			await bots[2].addReaction("blue_circle", emojiResponse);
-			let reactionRemove = await client.waitForReactionRemove([{},{id: bots[2].userId}]);
-		});
+		it("removes reaction if the player picks a non-unique emoji, a banned emoji, or a non-player reacted.", async () => {
+			let [response,game] = await goToConnect4Emojis(2);
+			await bots[1].addReaction("blue_circle", response);
+			let reactionRemove = await client.waitForReactionRemove([{},{id: bots[1].userId}]);
 
-		it("removes reaction if the player picks a banned emoji", async () => {
-			let [mainResponse, emojiResponse] = await goToEmojis(3);
-			await bots[0].addReaction("black_circle", emojiResponse);
-			let reactionRemove = await client.waitForReactionRemove([{},{id: bots[0].userId}]);
+			await bots[0].addReaction("black_circle", response);
+			reactionRemove = await client.waitForReactionRemove([{},{id: bots[0].userId}]);
+
+			await bots[2].addReaction("green_circle", response);
+			reactionRemove = await client.waitForReactionRemove([{},{id: bots[2].userId}]);
 		});
 
 		it("updates the player emoji and edits the message when a valid emoji is picked", async () => {
-			let [mainResponse, emojiResponse] = await goToEmojis(3);
-			await bots[0].addReaction("green_circle", emojiResponse);
-			emojiResponse = await client.waitForMessageUpdate({embeds: [{data: {title: "Set emojis"}}]});
+			let [response,game] = await goToConnect4Emojis(3);
+			await bots[0].addReaction("green_circle", response);
+			emojiResponse = await client.waitForMessageUpdate(true);
 			expect(emojiResponse.embeds.at(0).description.includes("green_circle"));
+
+			//custom emoji:
+
+			await bots[0].addReaction("aplusrank", response)
+			emojiResponse = await client.waitForMessageUpdate(true);
+			expect(emojiResponse.embeds.at(0).description.includes("aplusrank"));
 		});
 	});
 

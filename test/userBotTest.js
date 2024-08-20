@@ -5,7 +5,7 @@ const client = new MatthewClient();
 const UserBot = require("@userBot");
 const { setup, eachSetup } = require("@testSetup");
 const BOT_COUNT = 3;
-const {goToOptionsCreator, goToOptionsBase} = require("@testHelpers");
+const {goToLobbyCreator, goToOptionsCreator} = require("@testHelpers");
 
 let goToOptions;
 const GAME_COMMAND = "connect4";
@@ -14,22 +14,38 @@ const GAME_COMMAND = "connect4";
     let bots = await setup(client, BOT_COUNT);
     await eachSetup(client, bots);
 
+    goToLobby = goToLobbyCreator(GAME_COMMAND, bots, client);
+
     goToOptions = goToOptionsCreator(GAME_COMMAND, bots, client);
 
-    let [response, optionsResponse] = await goToOptions(3);
+        /**
+     * 
+     * @param {number} numPlayers 
+     * @param {Object<string,any>} [options={}]
+     * @param {Object<string,string>} [emojis={}]
+     * @returns {Promise<[Message,Connect4Game]>}
+     */
+    async function goToConnect4Emojis(numPlayers,options={},emojis={}) {
+        try {
+            let [response, game] = await goToOptions(numPlayers, options);
 
-    await bots[0].clickButton("Continue", optionsResponse);
-    let [mainEdit, emojiResponse, optionsDelete] = await Promise.all([
-        client.waitForMessageUpdate({embeds: [{ data: { title: "Connect4 game setting up..." } }]}),
-        client.waitForMessageUpdate({embeds: [{ data: { title: "Set emojis" }}]}),
-        client.waitForMessageDelete({embeds: [{ data: { title: "Options" }}],
-        }),
-    ]);
+            await bots[0].clickButton("Continue", response);
+            response = await client.waitForMessageUpdate(true);
 
-    await bots[0].addReaction("yellow_circle", emojiResponse);
+            for (player in emojis) {
+                if (! game.players.has(player)) {throw Error(`${player} not in player list`)};
+                game.players.get(player).other.emoji = emojis[player];
+            }
 
+            await game.editEmojiEmbed(true);
 
-
-    
+            return [response, game];
+        } catch (err) {
+            console.error(err);
+            return [err, "bleh"];
+        }
+    }
+    let [response,game] = await goToConnect4Emojis(3);
+    await bots[1].addReaction("aplusrank", response);
     
 })();

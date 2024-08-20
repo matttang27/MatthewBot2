@@ -10,15 +10,28 @@ module.exports = {
      * @param {CommandInteraction} interaction 
      */
 	async execute(interaction) {
-		
-		let embed = new EmbedBuilder()
+
+    interaction.reply({content: "Hello", ephemeral: true})
+
+        /*
+        let embed1 = new EmbedBuilder()
         .setColor('Red')
-        .setDescription("ephemeral message")
+        .setDescription("Hello 1")
+
+        let embed2 = new EmbedBuilder()
+        .setColor('Green')
+        .setDescription("Hello 2")
+
+        let body = {embeds: [embed1]}
 
         
-		let response = await interaction.reply({embeds: [embed], ephemeral: true});
+		let response = await interaction.reply(body);
 
-        let messages = await interaction.channel.messages.fetch({limit: 5});
-        console.log(messages);
+        await new Promise(r => setTimeout(r,2000))
+        await response.edit({embeds: [embed1,embed2]});
+        await new Promise(r => setTimeout(r,2000))
+        await response.edit({embeds: [embed2]});
+        await new Promise(r => setTimeout(r,2000))
+        await response.edit({embeds: [embed1,embed2]});*/
 	},
 };

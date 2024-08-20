@@ -91,7 +91,7 @@ class Connect4Game extends Game {
 
         this.stages.splice(2,0,{
             name: "emojis",
-            embedTitle: "setting emojis...",
+            embedTitle: "game setting emojis...",
             stageEmbed: true,
             execute: () => this.setEmojis()
         })

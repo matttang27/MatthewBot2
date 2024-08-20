@@ -247,7 +247,7 @@ class UserBot {
       await this.page.goto(`https://discord.com/channels/${message.guildId}/${message.channelId}`);
     }
     
-    await this.page.waitForSelector(`[id="message-accessories-${message.id}"]`)
+    await this.page.waitForSelector(`[id="message-accessories-${message.id}"]`, {timeout: 5000})
     await new Promise((r) => setTimeout(r, 2000));
 
     //find what "row" the button is on (embeds count as rows too)
@@ -259,17 +259,15 @@ class UserBot {
           let found = Array.from(buttons.children).find(button => button.textContent == buttonName);
           if (found) {return found}
         }
-        
-
       }
       return undefined
     }, message, buttonName);
 
     if (! button) {
-      console.error("Button not found");
-      return;
+      throw new Error("Button not found.")
     }
 
+    await new Promise((r) => setTimeout(r, 1000));
     await button.click()
 
   }
@@ -287,16 +285,20 @@ class UserBot {
       await this.page.goto(`https://discord.com/channels/${message.guildId}/${message.channelId}`);
     }
 
-    let messageElement = await this.page.waitForSelector(`#chat-messages-${message.channelId}-${message.id} > :first-child`)
-    await messageElement.focus();
+    let messageElement = await this.page.waitForSelector(`#chat-messages-${message.channelId}-${message.id} > :first-child`);
     await new Promise((r) => setTimeout(r, 1000));
-    
-    let addReactionButton = await this.page.waitForSelector(`#chat-messages-${message.channelId}-${message.id} [aria-label="Add Reaction"]`, {timeout: 5000})
+    //NEED TO MFING SCROLL BECAUSE DISCORD DOES NOT LET YOU CLICK IMMEDIATELY AFTER SCROLLING ELKDJSAKJFDIFOJ
+    await this.page.hover(`#chat-messages-${message.channelId}-${message.id} > :first-child`)
     await new Promise((r) => setTimeout(r, 1000));
-
+    await messageElement.click({button: 'right'});
+    let addReactionButton = await this.page.waitForSelector(`#message-add-reaction`,{timeout: 5000});
+    await new Promise((r) => setTimeout(r, 1000));
     await addReactionButton.click();
+
+    await new Promise((r) => setTimeout(r, 1000));
     await this.page.keyboard.type(emojiName);
     await this.page.keyboard.press("Enter");
+    
 
   }
 }
