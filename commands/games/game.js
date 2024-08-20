@@ -13,15 +13,21 @@ const {
     Embed,
     InteractionResponse,
     TextChannel,
+    Message,
 } = require("discord.js");
 
 const { errorEmbed, successEmbed, returnEmotes } = require("@root/functions");
 const MatthewClient = require("@root/matthewClient");
 
+/**
+ * This class handles the setup, configuration, and execution of a multiplayer game within a Discord server.
+ * It manages player interactions, game settings, and various game stages such as the lobby, in-game play, and the win screen.
+ * 
+ */
 class Game {
     /**
      * 
-     * @param {CommandInteraction} interaction 
+     * @param {CommandInteraction} interaction - The interaction that initiated the game.
      */
     constructor(interaction) {
         this.properties = {
@@ -43,7 +49,7 @@ class Game {
             },
         ];
         /**
-         * @type {Object}
+         * @type {Object} - Holds the current game options as set by the user.
          */
         this.currentOptions = {};
 
@@ -58,21 +64,33 @@ class Game {
 
         /**
          * The main response message
-         * @type {InteractionResponse}
+         * @type {Message}
          */
-        this.response;
+        this.mainResponse;
+
 
         /**
-         * The embed in the main response message
+         * The embed in the main response message (shows list of players)
          * @type {EmbedBuilder}
          */
         this.mainEmbed = new EmbedBuilder().setColor("Green")
 
         /**
-         * @type {Date}
+         * The embed for stages (ex. options list)
+         * @type {EmbedBuilder}
+         */
+        this.stageEmbed = new EmbedBuilder();
+
+        /**
+         * @type {Date} - The timestamp when the game started.
          */
         this.startTime = new Date(Date.now());
 
+        /**
+            * @type {Object}
+            * The properties to edit the mainResponse with
+            */
+        this.responseBody = {content: null};
 
         /**
          * @type {Collection<string, { user: User, stats: Object, other: Object }>}
@@ -86,7 +104,7 @@ class Game {
         
 
         /**
-         * @type {string}
+         * @type {string} - The current phase of the game (e.g., lobby, settings, in-game).
          */
         this.phase = "";
 
@@ -95,31 +113,30 @@ class Game {
          */
         this.winner = null;
 
-        /** @type {[{name: string, embedTitle: string, execute: function()}]} */
+        /** @type {[{name: string, embedTitle: string, execute: function(), stageEmbed: boolean}]} */
         this.stages = [
             {
                 name: "lobby",
                 embedTitle: "game created!",
+                stageEmbed: false,
                 execute: () => this.lobby()
             },
             {
                 name: "settings",
                 embedTitle: "game configuring...",
+                stageEmbed: true,
                 execute: () => this.inputSettings()
-            },
-            {
-                name: "setup",
-                embedTitle: "game setting up...",
-                execute: () => this.setup(),
             },
             {
                 name: "ingame",
                 embedTitle: "game ongoing!",
+                stageEmbed: true,
                 execute: () => this.playGame()
             },
             {
                 name: "winScreen",
                 embedTitle: "game finished",
+                stageEmbed: false,
                 execute: () => this.winScreen()
             }
         ]
@@ -132,46 +149,54 @@ class Game {
         };
     }
     //TODO: Combine both lobby list and other responses into one message (why didn't I think of this earlier??)
-    //all testing will need to be revamped.
+    //GOALS: Limit the amount of message updates / creates (costs time / complexity)
+    //       but make code as clear as possible, and reduce repetitiveness.
+    
+    /**
+     * Creates and starts the game, executing all stages in this.stages sequentially.
+     */
     async create() {
         try {
-            this.response = await this.interaction.deferReply();
+            this.mainResponse = await this.interaction.reply({content: "Loading...", fetchReply: true});
 
             this.client.games.set(this.client.games.size,this);
 
             for (var i in this.stages) {
-                this.stage = this.stages[i].name;
-                this.mainEmbed.setTitle(`${this.properties.gameName} ${this.stages[i].embedTitle}`)
-                await this.response.edit({embeds: [this.mainEmbed]});
+                this.stage = this.stages[i];
+                this.responseBody.embeds = this.stage.stageEmbed ? [this.mainEmbed,this.stageEmbed] : [this.mainEmbed]
+                await this.updateLobby();
                 await this.stages[i].execute();
             }
 
         } catch (err) {
-            const cancelledEmbed = new EmbedBuilder()
-                .setColor("Red")
-                .setTitle(`${this.properties.gameName} game cancelled`);
-
-            
-
-            if (! (err in this.errMessages)) {
-                console.error(err);
-                return;
-                
-            }
-
-            cancelledEmbed.setDescription(this.errMessages[err]);
-            await this.response.edit({
-                embeds: [cancelledEmbed],
-                components: [],
-            });
+           this.handleCancellation(err);
         }
     }
 
+    async handleCancellation(err) {
+        const cancelledEmbed = new EmbedBuilder()
+        .setColor("Red")
+        .setTitle(`${this.properties.gameName} game cancelled`);
+
+        if (! (err in this.errMessages)) {
+            console.error(err);
+            return;
+            
+        }
+
+        cancelledEmbed.setDescription(this.errMessages[err]);
+        await this.mainResponse.edit({
+            embeds: [cancelledEmbed],
+            components: [],
+        });
+    }
+
     /**
-     * updates the description of the mainEmbed with changed players
+     * Updates the lobby by modifying the mainEmbed description to display the list of current players.
+     * @param {boolean} edit - whether to edit the mainResponse message immediately.
      */
 
-    async updateLobby() {
+    async updateLobby(edit = false) {
         let playerString = ``;
         for (var i = 0; i < this.players.size; i++) {
             if (i == 0) {
@@ -181,51 +206,39 @@ class Game {
             }
         }
         this.mainEmbed.setDescription(playerString);
-        
 
-        await this.response.edit({embeds: [this.mainEmbed]});
+        this.mainEmbed.setTitle(`${this.properties.gameName} ${this.stage.embedTitle}` + 
+            (this.stage.name === "lobby" ? ` [${this.players.size}/${this.properties.maxPlayers}]` : ""));
 
+        if (edit) {
+            await this.mainResponse.edit(this.responseBody)
+        };
     }
+
     /**
-     *
-     * @returns {Promise} whether the lobby was successful
+     * Manages the lobby phase, where players can join or leave, and the game owner can start or cancel the game.
+     * 
+     * @returns {Promise} Resolves if the lobby was successful, otherwise rejects with a reason.
      */
     async lobby() {
         return new Promise(async (resolve, reject) => {
-            this.mainEmbed.setTitle(`${this.properties.gameName} game created! [${this.players.size}/${this.properties.maxPlayers}]`);
-            this.updateLobby();
 
-            const start = new ButtonBuilder()
-                .setCustomId("start")
-                .setLabel("Start")
-                .setStyle(ButtonStyle.Primary);
+            const startButton = new ButtonBuilder().setCustomId("start").setLabel("Start").setStyle(ButtonStyle.Primary);
+            const joinButton = new ButtonBuilder().setCustomId("joinleave").setLabel("Join / Leave").setStyle(ButtonStyle.Secondary);
+            const cancelButton = new ButtonBuilder().setCustomId("cancel").setLabel("Cancel").setStyle(ButtonStyle.Danger);
 
-            const join = new ButtonBuilder()
-                .setCustomId("joinleave")
-                .setLabel("Join / Leave")
-                .setStyle(ButtonStyle.Secondary);
+            const row = new ActionRowBuilder().addComponents(startButton,joinButton,cancelButton);
 
-            const cancel = new ButtonBuilder()
-                .setCustomId("cancel")
-                .setLabel("Cancel")
-                .setStyle(ButtonStyle.Danger);
+            this.responseBody.components = [row];
+            await this.mainResponse.edit(this.responseBody);
 
-            const row = new ActionRowBuilder().addComponents(
-                start,
-                join,
-                cancel
-            );
-
-            await this.interaction.editReply({
-                components: [row],
-            });
-
-            const collector = this.response.createMessageComponentCollector({
+            const collector = this.mainResponse.createMessageComponentCollector({
                 componentType: ComponentType.Button,
                 time: 120_000,
             });
 
             collector.on("collect", async (i) => {
+                
                 if (i.customId === "start") {
                     if (i.user.id == this.players.at(0).user.id) {
                         if (this.players.size < this.properties.minPlayers) {
@@ -243,6 +256,7 @@ class Game {
                     }
                 } else if (i.customId === "cancel") {
                     if (i.user.id == this.players.at(0).user.id) {
+                        await i.deferUpdate();
                         collector.stop("cancelled");
                     } else {
                         await i.reply(
@@ -250,18 +264,16 @@ class Game {
                         );
                     }
                 } else if (i.customId === "joinleave") {
+                    await i.deferUpdate();
                     if (this.players.has(i.user.id)) {
-                        await i.deferUpdate();
+                        
 
-                        if (this.players.size == 1) {
+                        this.players.delete(i.user.id);
+                        
+                        if (this.players.size == 0) {
                             collector.stop("empty");
                         } else {
-                            this.players.delete(i.user.id);
-
-                            this.mainEmbed.setTitle(`${this.properties.gameName} game created! [${this.players.size}/${this.properties.maxPlayers}]`)
-
-                            this.updateLobby();
-                            
+                            await this.updateLobby(true);
                         }
                     } else {
                         if (this.players.size == this.properties.maxPlayers) {
@@ -269,12 +281,9 @@ class Game {
                                 errorEmbed("Sorry, the lobby is full!")
                             );
                         } else {
-                            await i.deferUpdate();
-
                             this.players.set(i.user.id, {user: i.user, stats: {}, other: {}});
 
-                            this.mainEmbed.setTitle(`${this.properties.gameName} game created! [${this.players.size}/${this.properties.maxPlayers}]`)
-                            this.updateLobby();
+                            await this.updateLobby(true);
                             
                         }
                     }
@@ -292,18 +301,33 @@ class Game {
                     return;
                 }
 
-                this.response.edit({
-                    embeds: [this.mainEmbed],
-                    components: []
-                });
-
                 resolve();
             });
         });
     }
+
     /**
-     *
-     * @returns {Promise} whether the game should continue (not cancelled)
+     * Edits this.stageEmbed to show the list of options.
+     * @param {boolean} edit - whether to edit the mainResponse message immediately.
+    */
+    async showOptionsList(edit=false) {
+        this.stageEmbed.setDescription(
+            `${this.options
+                .map((option, index) => {
+                    return `${index + 1}. ${option.label} - **${
+                        this.currentOptions[option.name]
+                    }**`;
+                })
+                .join("\n")}\n\n${this.players.at(
+                0
+            ).user}, change settings by typing the option number`
+        );
+        if (edit) { await this.mainResponse.edit(this.responseBody)};
+    }
+    /**
+     * Handles the settings input phase, allowing the game owner to configure game settings.
+     * 
+     * @returns {Promise} Resolves if the settings were successfully configured, otherwise rejects.
      */
     async inputSettings() {
         return new Promise(async (resolve, reject) => {
@@ -312,9 +336,6 @@ class Game {
                 return obj;
             }, {});
 
-            let message = await this.channel.send({
-                content: "Loading Settings",
-            });
             const continueB = new ButtonBuilder()
                 .setCustomId("continue")
                 .setLabel("Continue")
@@ -330,37 +351,24 @@ class Game {
                 .setLabel("Cancel Game")
                 .setStyle(ButtonStyle.Danger);
 
-            const row = new ActionRowBuilder().addComponents(
+            this.responseBody.components = [new ActionRowBuilder().addComponents(
                 continueB,
                 leave,
                 cancel
-            );
+            )];
 
-            const settingsEmbed = new EmbedBuilder().setTitle("Options");
+            this.stageEmbed.setTitle("Options")
 
             var optionSelecting = true;
 
-            settingsEmbed.setDescription(
-                `${this.options
-                    .map((option, index) => {
-                        return `${index + 1}. ${option.label} - **${
-                            this.currentOptions[option.name]
-                        }**`;
-                    })
-                    .join("\n")}\n\n${this.players.at(
-                    0
-                ).user}, change settings by typing the option number`
-            );
+            /** Edits the options message description to show the list of options, asking the owner to select one.*/
+            await this.showOptionsList();
+
+            await this.mainResponse.edit(this.responseBody)
 
             
 
-            await message.edit({
-                content: "",
-                embeds: [settingsEmbed],
-                components: [row],
-            });
-
-            const bCollector = await message.createMessageComponentCollector({
+            const bCollector = await this.mainResponse.createMessageComponentCollector({
                 componentType: ComponentType.Button,
                 time: 120_000,
             });
@@ -400,36 +408,22 @@ class Game {
                     }
                 } else if (i.customId === "leave") {
                     if (this.players.has(i.user.id)) {
-                        if (this.players.size == this.properties.minPlayers) {
+                        await i.deferUpdate()
+                        this.players.delete(i.user.id);
+
+
+                        if (this.players.size < this.properties.minPlayers) {
                             bCollector.stop("not enough");
                             oCollector.stop();
-                            await i.deferUpdate();
-                        } else {
-                            await i.reply(successEmbed("You have left the lobby!"));
                             
-                            this.players.delete(i.user.id);
-                            this.updateLobby();
+                        } else {
+                        
 
                             if (optionSelecting) {
-                                settingsEmbed.setDescription(
-                                    `${this.options
-                                        .map((option, index) => {
-                                            return `${index + 1}. ${option.label} - **${
-                                                this.currentOptions[option.name]
-                                            }**`;
-                                        })
-                                        .join("\n")}\n\n${this.players.at(
-                                        0
-                                    ).user}, change settings by typing the option number`
-                                );
-                                await message.edit({
-                                    embeds: [settingsEmbed],
-                                });
+                                await this.showOptionsList();
                             }
-
                             
-
-                            
+                            await this.updateLobby(true);
                         }
                     } else {
                         await i.reply(errorEmbed("You are not in this lobby!"));
@@ -438,17 +432,9 @@ class Game {
             });
 
             bCollector.on("end", async (c, r) => {
-                message.delete();
                 if (r != "continue") {
                     reject(r);
                 } else {
-                    this.mainEmbed.setTitle(
-                        `${this.properties.gameName} game setting up...`
-                    );
-                    await this.response.edit({
-                        embeds: [this.mainEmbed],
-                        components: [],
-                    });
                     resolve();
                 }
             });
@@ -462,89 +448,73 @@ class Game {
                     await m.delete();
                     oSelected = this.options[parseInt(m.content) - 1];
 
-                    const valueEmbed = new EmbedBuilder()
+                    this.stageEmbed
                         .setTitle(`Editing ${oSelected.label}`)
                         .setDescription(oSelected.desc);
 
-                    await message.edit({ embeds: [valueEmbed] });
+                    await this.mainResponse.edit(this.responseBody);
 
                     oFilter = (m) =>
                         oSelected.filter(m) &&
                         m.author.id == this.players.at(0).user.id;
+                    
                     optionSelecting = false;
+
                 } else if (!optionSelecting && oFilter(m)) {
                     await m.delete();
                     this.currentOptions[oSelected.name] = parseInt(m.content);
 
-                    
-
-                    settingsEmbed.setDescription(
-                        `${this.options
-                            .map((option, index) => {
-                                return `${index + 1}. ${option.label} - **${
-                                    this.currentOptions[option.name]
-                                }**`;
-                            })
-                            .join("\n")}\n\n${this.players.at(
-                            0
-                        ).user}, change settings by typing the option number`
-                    );
-                    await message.edit({ embeds: [settingsEmbed] });
+                    await this.showOptionsList(true);
 
                     optionSelecting = true;
                 }
             });
         });
     }
-
-    async setup() {
-        this.mainEmbed.setTitle(
-            `${this.properties.gameName} game setting up...`
-        );
-        this.response.edit({
-            embeds: [this.mainEmbed],
-            components: [],
-        });
-        return;
-    }
     /**
-     *
-     * @returns {Promise} rejected if no winner
+     * Executes the main gameplay loop.
+     * This method should be implemented by extending classes to handle the core game logic.
      */
     playGame() {
+
         /*replace with game*/
         return new Promise(async (resolve, reject) => {
+
+            this.stageEmbed.setTitle("Game")
+            this.stageEmbed.setDescription("Ending in 5 seconds...")
+
+            this.mainResponse.edit(this.responseBody);
+
+            await new Promise(r => setTimeout(r,5000));
             this.winner = this.players.at(0).user;
+
+            
             resolve();
         });
     }
 
     /**
-     * 
-     * @returns {Promise}
+     * Displays the win screen with the winner's details.
      */
-    winScreen() {
-        return new Promise(async (resolve, reject) => {
-            this.response.edit({
-                embeds: [this.mainEmbed],
-                components: [],
-            });
-            if (this.winner != null) {
-                const victoryEmbed = new EmbedBuilder()
-                    .setTitle("We have a winner!")
-                    .setDescription(`All hail ${this.winner}`)
-                    .setColor("Green");
-                await this.channel.send({ embeds: [victoryEmbed] });
-                resolve();
-            } else {
-                const noVictoryEmbed = new EmbedBuilder()
-                    .setTitle("There was no winner...")
-                    .setDescription(`Everyone's a loser.`)
-                    .setColor("Red");
-                await this.channel.send({ embeds: [noVictoryEmbed] });
-                resolve();
-            }
-        });
+    async winScreen() {
+        this.responseBody.components = [];
+        await this.mainResponse.edit(this.responseBody);
+        
+        if (this.winner != null) {
+            const victoryEmbed = new EmbedBuilder()
+                .setTitle("We have a winner!")
+                .setDescription(`All hail ${this.winner}`)
+                .setColor("Green");
+            await this.channel.send({ embeds: [victoryEmbed] });
+        } else {
+            const noVictoryEmbed = new EmbedBuilder()
+                .setTitle("There was no winner...")
+                .setDescription(`Everyone's a loser.`)
+                .setColor("Red");
+            await this.channel.send({ embeds: [noVictoryEmbed] });
+            resolve();
+        }
+        
     }
 }
 

@@ -88,44 +88,41 @@ class Connect4Game extends Game {
         this.currentPlayer;
         this.turn = 1;
         this.board;
+
+        this.stages.splice(2,0,{
+            name: "emojis",
+            embedTitle: "setting emojis...",
+            stageEmbed: true,
+            execute: () => this.setEmojis()
+        })
     }
 
-    async editEmojiEmbed(embed) {
-        embed.setDescription(
+    async editEmojiEmbed(edit) {
+        this.stageEmbed.setTitle("Choose your piece!")
+        this.stageEmbed.setDescription(
             `${this.players
                 .map((player) => {
                     return `${player.user} - ${player.other.emoji}`;
                 })
-                .join("\n")}\n\n change your emoji by reacting to this message!`
+                .join("\n")}\n\n change your piece by reacting to this message!`
         );
+
+        if (edit) {
+            await this.mainResponse.edit(this.responseBody)
+        };
     }
+    
 
     /**
      *
      * @returns {Promise} whether the game should continue (not cancelled)
      */
-    async setup() {
-        //making sure winLength is at least minimum of width and height (otherwise impossible)
-        if (
-            this.currentOptions.winLength > this.currentOptions.width &&
-            this.currentOptions.winLength > this.currentOptions.height
-        ) {
-            this.currentOptions.winLength = Math.min(
-                options.width,
-                options.height
-            );
-        }
-
-        for (var i = 0; i < this.players.size; i++) {
-            this.players.at(i).other.emoji = this.defaultEmojis[i];
-        }
-
-        //Emoji selection
+    async setEmojis() {
 
         return new Promise(async (resolve, reject) => {
-            let message = await this.channel.send({
-                content: "Selecting emojis",
-            });
+            for (var i = 0; i < this.players.size; i++) {
+                this.players.at(i).other.emoji = this.defaultEmojis[i];
+            }
             const continueB = new ButtonBuilder()
                 .setCustomId("continue")
                 .setLabel("Continue")
@@ -141,23 +138,16 @@ class Connect4Game extends Game {
                 .setLabel("Cancel Game")
                 .setStyle(ButtonStyle.Danger);
 
-            const row = new ActionRowBuilder().addComponents(
+            this.responseBody.components = [new ActionRowBuilder().addComponents(
                 continueB,
                 leave,
                 cancel
-            );
+            )];
 
-            const emojisEmbed = new EmbedBuilder().setTitle("Set emojis");
+            await this.editEmojiEmbed(true);
 
-            this.editEmojiEmbed(emojisEmbed);
 
-            await message.edit({
-                content: "",
-                embeds: [emojisEmbed],
-                components: [row],
-            });
-
-            const bCollector = await message.createMessageComponentCollector({
+            const bCollector = await this.mainResponse.createMessageComponentCollector({
                 componentType: ComponentType.Button,
                 time: 120_000,
             });
@@ -166,17 +156,17 @@ class Connect4Game extends Game {
                 return true
             };
 
-            const rCollector = await message.createReactionCollector({
+            const rCollector = await this.mainResponse.createReactionCollector({
                 filter: (r,u) => true,
                 time: 500_000,
             });
 
             bCollector.on("collect", async (i) => {
+                await i.deferUpdate();
                 if (i.customId === "continue") {
                     if (i.user.id == this.players.at(0).user.id) {
                         bCollector.stop("continue");
                         rCollector.stop();
-                        await i.deferUpdate();
                     } else {
                         await i.reply(
                             errorEmbed("You are not the owner of this lobby!")
@@ -196,20 +186,11 @@ class Connect4Game extends Game {
                         if (this.players.size == this.properties.minPlayers) {
                             bCollector.stop("not enough");
                             rCollector.stop();
-                            await i.deferUpdate();
+                            
                         } else {
                             this.players.delete(i.user.id);
-                            this.editEmojiEmbed(emojisEmbed);
-
-                            await i.reply(
-                                successEmbed("You have left the game.")
-                            );
-                            
-                            await message.edit({ embeds: [emojisEmbed] });
-
                             await this.updateLobby();
-
-                            
+                            await this.editEmojiEmbed(true);                                           
                         }
                     } else {
                         await i.reply(errorEmbed("You are not in this lobby!"));
@@ -222,8 +203,7 @@ class Connect4Game extends Game {
                     (!this.players.map((p) => p.other.emoji).includes(r.emoji.name)) &&
                     (!this.bannedEmojis.includes(r.emoji.name))) {
                     this.players.get(u.id).other.emoji = r.emoji.toString();
-                    this.editEmojiEmbed(emojisEmbed);
-                    await message.edit({ embeds: [emojisEmbed] });
+                    this.editEmojiEmbed(true);
                 } else {
                     r.users.remove(u);
                 }
@@ -232,15 +212,9 @@ class Connect4Game extends Game {
             });
 
             bCollector.on("end", async (c, r) => {
-                message.delete();
                 if (r != "continue") {
                     reject(r);
                 } else {
-
-                    this.response.edit({
-                        embeds: [this.mainEmbed],
-                        components: [],
-                    });
                     resolve();
                 }
             });
@@ -249,27 +223,31 @@ class Connect4Game extends Game {
 
     async playGame() {
         return new Promise(async (resolve, reject) => {
+            //making sure winLength is at least minimum of width and height (otherwise impossible)
+            if (
+                this.currentOptions.winLength > this.currentOptions.width &&
+                this.currentOptions.winLength > this.currentOptions.height
+            ) {
+                this.currentOptions.winLength = Math.min(
+                    options.width,
+                    options.height
+                );
+            }
+
             this.setEmptyBoard();
 
             this.currentPlayer = this.players.at(0);
 
+            delete this.responseBody.components
+
+            this.stageEmbed.setTitle(null);
+
             while (true) {
+                
 
                 if (this.winner != null) {resolve()}
                 //board is full
-                if (
-                    this.turn >
-                    this.currentOptions.height * this.currentOptions.width
-                ) {
-                    const drawEmbed = new EmbedBuilder()
-                        .setTitle("Game ended in draw!")
-                        .setFooter({ text: "everyone's a loser" });
-                    this.channel.send({
-                        embeds: [drawEmbed],
-                    });
-
-                    resolve();
-                }
+                if (this.turn > this.currentOptions.height * this.currentOptions.width) {resolve()}
 
                 if (this.players.size == 1) {
                     this.winner = this.players.at(0).user;
@@ -277,10 +255,7 @@ class Connect4Game extends Game {
                     return;
                 }
 
-                await this.channel.send({
-                    embeds: [this.printBoard()],
-                    components: [],
-                });
+                await this.printBoard(true);
 
                 const filter = (m) =>
                     m.author.id === this.currentPlayer.user.id &&
@@ -366,9 +341,9 @@ class Connect4Game extends Game {
 
     /**
      * Generates a visual representation of the game board.
-     * @returns {EmbedBuilder} The embed representing the game board.
+     * @param {boolean} edit - whether to edit the mainResponse message immediately.
      */
-    printBoard() {
+    async printBoard(edit) {
         let boardText = "";
         for (var i = 0; i < this.currentOptions.height; i++) {
             for (var j = 0; j < this.currentOptions.width; j++) {
@@ -386,13 +361,16 @@ class Connect4Game extends Game {
         }
         boardText += `\n\n  ${this.currentPlayer.other.emoji} - <@${
             this.currentPlayer.user.id
-        }>'s turn. (Type 1-7) ${time(
+        }>'s turn. (Type 1-${this.currentOptions.width}) ${time(
             Math.round(
                 (Date.now() + this.currentOptions.timeLimit * 1000) / 1000
             ),
             "R"
         )}`;
-        return new EmbedBuilder().setDescription(boardText);
+
+        this.stageEmbed.setDescription(boardText);
+
+        if (edit) {await this.mainResponse.edit(this.responseBody)};
     }
 
     /**
