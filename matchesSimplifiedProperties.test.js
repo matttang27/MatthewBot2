@@ -172,4 +172,174 @@ describe("matthewClient's matches simplified properties", () => {
             ).toBe("embeds[0].data.title different: real: HELLO2, mock: HELLO");
         })
     })
+
+    describe("MatthewClient's matchesSimplifiedProperties with varied predicates", () => {
+        it("checks that string functions in mock properties are correctly evaluated", () => {
+            // String includes
+            expect(
+                client.matchesSimplifiedProperties(
+                    { text: "Hello, world!" },
+                    { text: str => str.includes("world") }
+                )
+            ).toBe(true);
+    
+            expect(
+                client.matchesSimplifiedProperties(
+                    { text: "Goodbye, world!" },
+                    { text: str => str.includes("Hello") }
+                )
+            ).toBe("text function (str => str.includes(\"Hello\")) returned false for Goodbye, world!");
+    
+            // String startsWith
+            expect(
+                client.matchesSimplifiedProperties(
+                    { text: "Goodbye, world!" },
+                    { text: str => str.startsWith("Goodbye") }
+                )
+            ).toBe(true);
+    
+            expect(
+                client.matchesSimplifiedProperties(
+                    { text: "Hello, world!" },
+                    { text: str => str.startsWith("Goodbye") }
+                )
+            ).toBe("text function (str => str.startsWith(\"Goodbye\")) returned false for Hello, world!");
+        });
+    
+        it("checks array length and content with function predicates", () => {
+            const arrayTest = [1, 2, 3, 4];
+    
+            // Array length check
+            expect(
+                client.matchesSimplifiedProperties(
+                    { items: arrayTest },
+                    { items: arr => arr.length === 4 }
+                )
+            ).toBe(true);
+    
+            expect(
+                client.matchesSimplifiedProperties(
+                    { items: arrayTest },
+                    { items: arr => arr.length === 3 }
+                )
+            ).toBe("items function (arr => arr.length === 3) returned false for 1,2,3,4");
+    
+            // Array includes check
+            expect(
+                client.matchesSimplifiedProperties(
+                    { items: arrayTest },
+                    { items: arr => arr.includes(3) }
+                )
+            ).toBe(true);
+    
+            expect(
+                client.matchesSimplifiedProperties(
+                    { items: arrayTest },
+                    { items: arr => arr.includes(5) }
+                )
+            ).toBe("items function (arr => arr.includes(5)) returned false for 1,2,3,4");
+        });
+    
+        it("checks nested properties with function predicates", () => {
+            const nestedObject = {
+                user: {
+                    name: "Alice",
+                    roles: ["admin", "moderator"],
+                    stats: { wins: 10, losses: 5 }
+                }
+            };
+    
+            // Check nested string
+            expect(
+                client.matchesSimplifiedProperties(
+                    nestedObject,
+                    { user: { name: str => str.startsWith("A") } }
+                )
+            ).toBe(true);
+    
+            expect(
+                client.matchesSimplifiedProperties(
+                    nestedObject,
+                    { user: { name: str => str.startsWith("B") } }
+                )
+            ).toBe("user.name function (str => str.startsWith(\"B\")) returned false for Alice");
+    
+            // Check nested array length
+            expect(
+                client.matchesSimplifiedProperties(
+                    nestedObject,
+                    { user: { roles: arr => arr.length === 2 } }
+                )
+            ).toBe(true);
+    
+            expect(
+                client.matchesSimplifiedProperties(
+                    nestedObject,
+                    { user: { roles: arr => arr.length === 3 } }
+                )
+            ).toBe("user.roles function (arr => arr.length === 3) returned false for admin,moderator");
+    
+            // Check nested object values
+            expect(
+                client.matchesSimplifiedProperties(
+                    nestedObject,
+                    { user: { stats: obj => obj.wins > obj.losses } }
+                )
+            ).toBe(true);
+    
+            expect(
+                client.matchesSimplifiedProperties(
+                    nestedObject,
+                    { user: { stats: obj => obj.losses > obj.wins } }
+                )
+            ).toBe("user.stats function (obj => obj.losses > obj.wins) returned false for [object Object]");
+        });
+    
+        it("handles complex nested structures with multiple function predicates", () => {
+            const complexObject = {
+                user: {
+                    name: "Bob",
+                    roles: ["user", "guest"],
+                    profile: {
+                        age: 25,
+                        bio: "Loves coding and music.",
+                        stats: { posts: 150, likes: 200 }
+                    }
+                }
+            };
+    
+            // Complex nested checks
+            expect(
+                client.matchesSimplifiedProperties(
+                    complexObject,
+                    {
+                        user: {
+                            name: str => str.includes("Bob"),
+                            roles: arr => arr.length > 1,
+                            profile: {
+                                age: n => n >= 18,
+                                bio: str => str.includes("coding"),
+                                stats: obj => obj.likes > obj.posts
+                            }
+                        }
+                    }
+                )
+            ).toBe(true);
+    
+            // Check with failing condition
+            expect(
+                client.matchesSimplifiedProperties(
+                    complexObject,
+                    {
+                        user: {
+                            name: str => str.includes("Alice"),
+                            profile: {
+                                stats: obj => obj.posts > obj.likes
+                            }
+                        }
+                    }
+                )
+            ).toBe("user.name function (str => str.includes(\"Alice\")) returned false for Bob");
+        });
+    });
 });

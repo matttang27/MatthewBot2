@@ -283,41 +283,54 @@ class MatthewClient extends Client {
     
 
     /**
-     * Compares a real object to a simplified version (ex. for embeds or components).
-     * Returns true if every property in the simplified version is identical in the real object.
-     * Otherwise, returns a helpful error string.
-     * @param {Object} real 
-     * @param {Object} mock
-     * @returns {string | true} the property that doesn't match / exist
-     * 
-     * Behaviour (tests can be found in {@link file://./matthewClient.test.js}):
-     * Empty objects only checks that realObject key is an object
-     * 
-     * If strictArrays = true,
-     * Arrays require same length.
-     * Otherwise, arrays allow extra elements.
-     * 
-     * @example
-     * mock = {test: {}}
-     * {test: {}} - PASS, {test: {"HELLO":"HI"}} - PASS, {test: {}} - FAIL, {test: "HELLO"} - FAIL
-     * 
-     * @example
-     * mock = {test: []}
-     * strictArrays = true
-     * {test: []} - PASS, {test: ["HELLO"]} - PASS, {test: "HELLO"} - FAIL
-     * 
-     * @example
-     * mock = {test: ["HELLO"]}
-     * strictArrays = true
-     * {test: []} - FAIL, {test: ["HELLO"]} - PASS, {test: ["HELLO","HI"]} - PASS
-     * 
-     * @todo add map / collection functionality? It is already object, but could add strict mode for length.
-     */
+ * Compares a real object to a simplified version (ex. for embeds or components), and functions.
+ * Returns true if every property in the simplified version is identical in the real object.
+ * Otherwise, returns a helpful error string.
+ * @param {Object} real 
+ * @param {Object} mock
+ * @param {boolean} [strictArrays=false] - If true, arrays require the same length; otherwise, extra elements are allowed.
+ * @returns {string | true} the property that doesn't match / exist
+ * 
+ * Behaviour (tests can be found in {@link file://./matthewClient.test.js}):
+ * Empty objects only check that the realObject key is an object.
+ * 
+ * If strictArrays = true,
+ * Arrays require the same length.
+ * Otherwise, arrays allow extra elements.
+ * 
+ * Properties in the mock object can be predicates (functions).
+ * The function is executed with the corresponding property in the real object.
+ * If it returns false, the check fails.
+ * 
+ * @example
+ * mock = {test: {}}
+ * {test: {}} - PASS, {test: {"HELLO":"HI"}} - PASS, {test: {}} - FAIL, {test: "HELLO"} - FAIL
+ * 
+ * @example
+ * mock = {test: []}
+ * strictArrays = true
+ * {test: []} - PASS, {test: ["HELLO"]} - PASS, {test: "HELLO"} - FAIL
+ * 
+ * @example
+ * mock = {test: ["HELLO"]}
+ * strictArrays = true
+ * {test: []} - FAIL, {test: ["HELLO"]} - PASS, {test: ["HELLO","HI"]} - PASS
+ * 
+ * @example
+ * mock = {test: n => n > 6}
+ * {test: 7} - PASS, {test: "7"} - PASS, {test: []} - FAIL
+ * 
+ * @todo add map / collection functionality? It is already object, but could add strict mode for length.
+ */
     matchesSimplifiedProperties(real,mock,strictArrays=false) {
         for (let key in mock) {
-            if (!real.hasOwnProperty(key)) return `${key} does not exist in real`;
-
-            if (mock[key] instanceof Array) {
+            if (real[key] === undefined) {return `${key} does not exist in real`};
+            if (mock[key] instanceof Function) {
+                if (mock[key](real[key]) === false) {
+                    return `${key} function (${mock[key].toString()}) returned false for ${real[key]}`
+                }
+            }
+            else if (mock[key] instanceof Array) {
                 if (! (real[key].constructor == Array)) {
                     return `${key} has type ${real[key].constructor.name} instead of Array`
                 }
