@@ -2,19 +2,25 @@ const { Message, SnowflakeUtil, Snowflake } = require("discord.js");
 const puppeteer = require("puppeteer");
 const { DiscordSnowflake } = require('@sapphire/snowflake');
 class UserBot {
-  /** id of the guild that this bot will run in*/
+
+  /** @type {string} id of the guild that this bot will run in */
   guildId;
-  /** id of the channel that this bot will run in (can be changed)*/
+
+  /** @type {string} id of the channel that this bot will run in (can be changed) */
   channelId;
-  /** userId of the userBot 
-   * @type {string}
-  */
+
+  /** @type {string} userId of the `UserBot`*/
   userId;
-  /** name of your actual bot (to find the right bot to send slash command to)*/
+
+  /** @type {string} name of your actual bot (to find the right bot to send slash command to)*/
   botName;
   
   constructor() {}
 
+  /**
+   * Finds an element on the page using a CSS selector and clicks it after one second
+   * @param {string} selector - The CSS selector of the element to find and click.
+   */
   async findAndClick(selector) {
     await this.page.waitForSelector(selector);
     await new Promise((r) => setTimeout(r, 1000));
@@ -22,6 +28,12 @@ class UserBot {
     await new Promise((r) => setTimeout(r, 1000));
   }
 
+  /**
+   * Retrieves the User ID of the currently logged-in user by simulating interaction with the Discord interface.
+   * If the User ID is not immediately available, the method opens the Status menu and enables Developer Mode to access the ID.
+   * 
+   * @returns {Promise<string | null>} The User ID of the current user or `null` if not found.
+   */
   async getUserID() {
     //check if Status is already open (and User ID button is available)
     let id = await this.page.evaluate(() => {
@@ -51,6 +63,12 @@ class UserBot {
     
   }
 
+  /**
+   * Enables Developer Mode in Discord, which is required to copy user IDs.
+   * This method navigates to User Settings, opens the Advanced settings, and toggles Developer Mode if it is not already enabled.
+   * 
+   * @returns {Promise<void>}
+   */
   async enableDeveloperMode() {
     // Navigate to User Settings
     await this.page.goto("https://discord.com/channels/@me");
@@ -77,6 +95,19 @@ class UserBot {
 
   }
 
+
+  /**
+   * Logs in to Discord using the provided username and password.
+   * The method uses Puppeteer to navigate to the Discord login page, enter the credentials, and wait until the login process is complete.
+   * If a user ID is not provided, it retrieves it by enabling Developer Mode if necessary.
+   * 
+   * @param {string} username - The username or email to log in with.
+   * @param {string} password - The password to log in with.
+   * @param {string} id - The user ID (optional, will be retrieved if not provided).
+   * @param {string} endpoint - The Puppeteer browser endpoint to connect to.
+   * @returns {Promise<void>}
+   * @throws Will throw an error if the Puppeteer endpoint is not provided or is invalid.
+   */
   async login(username, password, id, endpoint) {
     if (endpoint === undefined) {
       throw new Error("Please run puppeteerRunner.js before running any tests.")
@@ -140,7 +171,14 @@ class UserBot {
     console.log("userBot login:", username, this.userId);
   }
 
-  //sends a message
+  /**
+   * Sends a message to a specified channel in a guild.
+   * 
+   * @param {string} content - The message content to send.
+   * @param {string} [guildId=this.guildId] - The ID of the guild to send the message in.
+   * @param {string} [channelId=this.channelId] - The ID of the channel to send the message in.
+   * @returns {Promise<void>}
+   */
   async sendMessage(content, guildId=this.guildId, channelId=this.channelId) {
     if (this.page.url() != `https://discord.com/channels/${guildId}/${channelId}`) {
       await this.page.goto(`https://discord.com/channels/${guildId}/${channelId}`);
@@ -155,6 +193,16 @@ class UserBot {
     await this.page.keyboard.press("Enter");
   }
 
+  /**
+   * Sends a slash command to the main bot in the specified channel.
+   * The method navigates to the channel, types the command, and selects the correct bot from the list.
+   * 
+   * @param {string} commandName - The name of the command to send.
+   * @param {string} [botName=this.botName] - The name of the bot to send the command to.
+   * @param {string} [guildId=this.guildId] - The ID of the guild to send the command in.
+   * @param {string} [channelId=this.channelId] - The ID of the channel to send the command in.
+   * @returns {Promise<void>}
+   */
   async sendCommand(commandName, botName=this.botName, guildId=this.guildId, channelId=this.channelId) {
     console.log(guildId, channelId);
     if (this.page.url() != `https://discord.com/channels/${guildId}/${channelId}`) {
@@ -186,9 +234,12 @@ class UserBot {
   }
 
   /**
-   * @param {string} buttonName 
-   * @param {Message} message 
-   * @returns 
+   * Clicks a button in a specified message.
+   * The method finds the button by name within the message and simulates a click.
+   * 
+   * @param {string} buttonName - The name of the button to click.
+   * @param {Message} message - The Discord message object containing the button.
+   * @returns {Promise<void>}
    */
   async clickButton(buttonName, message) {
     
@@ -224,9 +275,12 @@ class UserBot {
   }
 
   /**
+   * Adds a reaction to a specified message using the provided emoji name.
+   * The method navigates to the message, opens the reaction picker, and adds the reaction.
    * 
-   * @param {string} emojiName 
-   * @param {Message} message 
+   * @param {string} emojiName - The name of the emoji to react with.
+   * @param {Message} message - The Discord message object to add the reaction to.
+   * @returns {Promise<void>}
    */
   async addReaction(emojiName, message) {
     if (this.page.url() != `https://discord.com/channels/${message.guildId}/${message.channelId}`) {

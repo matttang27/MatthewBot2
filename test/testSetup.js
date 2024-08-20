@@ -6,10 +6,18 @@ const { Client } = require("discord.js");
 const fs = require('fs');
 const deployCommands = require("@root/deploy-commands.js")
 /**
+ * Sets up the testing environment by logging in the main client, deploying commands, and initializing a set of user bots.
+ * The function performs the following steps:
+ * 1. Logs in the main `MatthewClient`.
+ * 2. Waits for the client to be ready.
+ * 3. Deploys commands to the test guild.
+ * 4. Fetches the test guild and deletes any existing channels with names starting with "tz".
+ * 5. Initializes and logs in the specified number of user bots.
+ * 6. Updates the `userBots.json` file with bot user IDs if they are not already present.
  * 
  * @param {MatthewClient} client 
- * @param {Number} BOT_COUNT 
- * @returns {Promise<UserBot[]>}
+ * @param {Number} BOT_COUNT - The number of user bots to initialize
+ * @returns {Promise<UserBot[]>} A promise that resolves to an array of logged-in `UserBot` instances.
  */
 async function setup(client, BOT_COUNT) {
     client.login();
@@ -70,7 +78,9 @@ async function setup(client, BOT_COUNT) {
 
 /**
  * Creates a testing channel in the test server, and sets the channelId for each bot
- * Then sends the name of the test into the channel
+ * If the global `expect` object is available (indicating that the function is being run in a test environment),
+ * the channel name is set to the name of the current test case, and the first bot sends a message with the full test name in the new channel.
+ * Otherwise, a default name is used without a message.
  * @param {Client} client 
  * @param {UserBot[]} bots 
  */
@@ -89,6 +99,8 @@ async function eachSetup(client,bots) {
     }
     
     bots.forEach(bot => bot.channelId = client.testChannel.id)
-    if (typeof expect !== "undefined") {await bots[0].sendMessage(expect.getState().currentTestName)};
+    if (typeof expect !== "undefined") {
+        await bots[0].sendMessage(expect.getState().currentTestName)
+    };
 }
 module.exports = {setup, eachSetup};
