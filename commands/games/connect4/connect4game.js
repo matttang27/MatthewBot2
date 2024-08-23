@@ -93,6 +93,8 @@ class Connect4Game extends Game {
             name: "emojis",
             embedTitle: "game setting emojis...",
             stageEmbed: true,
+            buttons: true,
+            canJoin: false,
             execute: () => this.setEmojis()
         })
     }
@@ -115,89 +117,22 @@ class Connect4Game extends Game {
 
     /**
      *
-     * @returns {Promise} whether the game should continue (not cancelled)
+     * @returns {Promise<void>} whether the game should continue (not cancelled)
      */
     async setEmojis() {
-
-        return new Promise(async (resolve, reject) => {
+        let rCollector;
+        try {
             for (var i = 0; i < this.players.size; i++) {
                 this.players.at(i).other.emoji = this.defaultEmojis[i];
             }
-            const continueB = new ButtonBuilder()
-                .setCustomId("continue")
-                .setLabel("Continue")
-                .setStyle(ButtonStyle.Primary);
-
-            const leave = new ButtonBuilder()
-                .setCustomId("leave")
-                .setLabel("Leave Game")
-                .setStyle(ButtonStyle.Secondary);
-
-            const cancel = new ButtonBuilder()
-                .setCustomId("cancel")
-                .setLabel("Cancel Game")
-                .setStyle(ButtonStyle.Danger);
-
-            this.responseBody.components = [new ActionRowBuilder().addComponents(
-                continueB,
-                leave,
-                cancel
-            )];
-
+    
             await this.editEmojiEmbed(true);
-
-
-            const bCollector = await this.mainResponse.createMessageComponentCollector({
-                componentType: ComponentType.Button,
-                time: 120_000,
-            });
-
-            const rFilter = (r, u) => {
-                return true
-            };
-
+    
             const rCollector = await this.mainResponse.createReactionCollector({
                 filter: (r,u) => true,
                 time: 500_000,
             });
-
-            bCollector.on("collect", async (i) => {
-                await i.deferUpdate();
-                if (i.customId === "continue") {
-                    if (i.user.id == this.players.at(0).user.id) {
-                        bCollector.stop("continue");
-                        rCollector.stop();
-                    } else {
-                        await i.reply(
-                            errorEmbed("You are not the owner of this lobby!")
-                        );
-                    }
-                } else if (i.customId === "cancel") {
-                    if (i.user.id == this.players.at(0).user.id) {
-                        bCollector.stop("cancelled");
-                        rCollector.stop();
-                    } else {
-                        await i.reply(
-                            errorEmbed("You are not the owner of this lobby!")
-                        );
-                    }
-                } else if (i.customId === "leave") {
-                    if (this.players.has(i.user.id)) {
-                        if (this.players.size == this.properties.minPlayers) {
-                            bCollector.stop("not enough");
-                            rCollector.stop();
-                            
-                        } else {
-                            this.players.delete(i.user.id);
-                            await this.updateLobby();
-                            await this.editEmojiEmbed(true);                                           
-                        }
-                    } else {
-                        await i.reply(errorEmbed("You are not in this lobby!"));
-                    }
-                }
-            });
-
+    
             rCollector.on("collect", async (r, u) => {
                 if (this.players.has(u.id) &&
                     (!this.players.map((p) => p.other.emoji).includes(r.emoji.name)) &&
@@ -210,107 +145,83 @@ class Connect4Game extends Game {
                 
                 
             });
-
-            bCollector.on("end", async (c, r) => {
-                if (r != "continue") {
-                    reject(r);
-                } else {
-                    resolve();
-                }
-            });
-        });
+    
+            await this.createButtonCollectors(this.editEmojiEmbed);
+        } catch (err) {
+            throw err
+        } finally {
+            if (rCollector) {rCollector.stop();}
+        }
+        
     }
 
     async playGame() {
-        return new Promise(async (resolve, reject) => {
-            //making sure winLength is at least minimum of width and height (otherwise impossible)
-            if (
-                this.currentOptions.winLength > this.currentOptions.width &&
-                this.currentOptions.winLength > this.currentOptions.height
-            ) {
-                this.currentOptions.winLength = Math.min(
-                    options.width,
-                    options.height
-                );
+        //making sure winLength is at least minimum of width and height (otherwise impossible)
+        if (
+            this.currentOptions.winLength > this.currentOptions.width &&
+            this.currentOptions.winLength > this.currentOptions.height
+        ) {
+            this.currentOptions.winLength = Math.min(
+                options.width,
+                options.height
+            );
+        }
+
+        this.setEmptyBoard();
+
+        this.currentPlayer = this.players.at(0);
+
+        delete this.responseBody.components
+
+        this.stageEmbed.setTitle(null);
+
+        while (true) {
+            
+
+            if (this.winner != null) {resolve()}
+            //board is full
+            if (this.turn > this.currentOptions.height * this.currentOptions.width) {resolve()}
+
+            if (this.players.size == 1) {
+                this.winner = this.players.at(0).user;
+                return;
             }
 
-            this.setEmptyBoard();
+            await this.printBoard(true);
 
-            this.currentPlayer = this.players.at(0);
+            const filter = (m) =>
+                m.author.id === this.currentPlayer.user.id &&
+                parseInt(m.content) >= 1 &&
+                parseInt(m.content) <= this.currentOptions.width &&
+                this.board[0][parseInt(m.content) - 1] == -1;
 
-            delete this.responseBody.components
+            await this.channel
+                .awaitMessages({
+                    filter,
+                    max: 1,
+                    time: this.currentOptions.timeLimit * 1000,
+                    errors: ["time"],
+                })
+                .then(async (collected) => {
+                    await collected.first().delete();
+                    
+                    let move = parseInt(collected.first().content) - 1;
 
-            this.stageEmbed.setTitle(null);
-
-            while (true) {
-                
-
-                if (this.winner != null) {resolve()}
-                //board is full
-                if (this.turn > this.currentOptions.height * this.currentOptions.width) {resolve()}
-
-                if (this.players.size == 1) {
-                    this.winner = this.players.at(0).user;
-                    resolve();
-                    return;
-                }
-
-                await this.printBoard(true);
-
-                const filter = (m) =>
-                    m.author.id === this.currentPlayer.user.id &&
-                    parseInt(m.content) >= 1 &&
-                    parseInt(m.content) <= this.currentOptions.width &&
-                    this.board[0][parseInt(m.content) - 1] == -1;
-
-                await this.channel
-                    .awaitMessages({
-                        filter,
-                        max: 1,
-                        time: this.currentOptions.timeLimit * 1000,
-                        errors: ["time"],
-                    })
-                    .then(async (collected) => {
-                        await collected.first().delete();
-                        
-                        let move = parseInt(collected.first().content) - 1;
-
-                        for (
-                            var i = this.currentOptions.height - 1;
-                            i >= 0;
-                            i--
-                        ) {
-                            if (this.board[i][move] == -1) {
-                                this.board[i][move] = this.currentPlayer.user.id;
-                                break;
-                            }
+                    for (
+                        var i = this.currentOptions.height - 1;
+                        i >= 0;
+                        i--
+                    ) {
+                        if (this.board[i][move] == -1) {
+                            this.board[i][move] = this.currentPlayer.user.id;
+                            break;
                         }
+                    }
 
-                        if (this.checkWin() != -1) {
-                            this.winner = this.players.get(this.checkWin()).user;
-                            
-                        } else {
-                            this.currentPlayer = this.players.at(
-                                (Array.from(this.players)
-                                    .map((p) => p[0])
-                                    .indexOf(this.currentPlayer.user.id) +
-                                    1) %
-                                    this.players.size
-                            );
-    
-                            this.turn++;
-                        }
-
+                    if (this.checkWin() != -1) {
+                        this.winner = this.players.get(this.checkWin()).user;
                         
-                    })
-                    .catch(async (collected) => {
-                        await this.channel.send(
-                            `<@${this.currentPlayer.user.id}> ran out of time!`
-                        );
-
-                        let quitter = this.currentPlayer.user.id;
-
-                        //gets the next player in the collection (wraps around if last)
+                    } else {
                         this.currentPlayer = this.players.at(
                             (Array.from(this.players)
                                 .map((p) => p[0])
@@ -318,11 +229,31 @@ class Connect4Game extends Game {
                                 1) %
                                 this.players.size
                         );
-                        //then delete original player
-                        this.players.delete(quitter);
-                    });
-            }
-        });
+
+                        this.turn++;
+                    }
+
+                    
+                })
+                .catch(async (collected) => {
+                    await this.channel.send(
+                        `<@${this.currentPlayer.user.id}> ran out of time!`
+                    );
+
+                    let quitter = this.currentPlayer.user.id;
+
+                    //gets the next player in the collection (wraps around if last)
+                    this.currentPlayer = this.players.at(
+                        (Array.from(this.players)
+                            .map((p) => p[0])
+                            .indexOf(this.currentPlayer.user.id) +
+                            1) %
+                            this.players.size
+                    );
+                    //then delete original player
+                    this.players.delete(quitter);
+                });
+        }
     }
     /**
      * Initializes an empty game board.
