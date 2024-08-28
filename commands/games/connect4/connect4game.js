@@ -29,8 +29,8 @@ class Connect4Game extends Game {
      * Creates a new Connect 4 game instance.
      * @param {Object} interaction - The interaction object from Discord.js.
      */
-    constructor(interaction) {
-        super(interaction);
+    constructor(interaction,options={}) {
+        super(interaction,options);
 
         this.properties = {
             gameName: "Connect4",
@@ -84,19 +84,61 @@ class Connect4Game extends Game {
                     parseInt(m.content) >= 5 &&
                     parseInt(m.content) <= 120,
             },
-        ];
-        this.currentPlayer;
-        this.turn = 1;
-        this.board;
+            {
+                name: "gamemode",
+                label: "Gamemode",
+                desc: 
+                `Enter the number of the gamemode you would like to play:
 
-        this.stages.splice(2,0,{
+                1. Original - The classic connect4.
+                
+                2. Colorblind - Pieces are all identical. Can you remember them all?
+
+                3. Blind - The board is not shown. For the brave.
+
+                4. Dizzyness - Every move, the piece is inserted from a different side (rotating clockwise)`,
+                type: "selection",
+                selections: ["Original","Colorblind","Blind","Spin"],
+                value: "Original",
+                filter: (m) =>
+                    !isNaN(m.content) &&
+                    parseInt(m.content) >= 1 &&
+                    parseInt(m.content) <= 5,
+            }
+        ];
+        
+        this.currentPlayer;
+        /** @type {Array<Array<number>>} */
+        this.board;
+        /** @type {Array<[number,number,number]} */
+        this.moves = [];
+
+        this.stages["emojis"] = {
             name: "emojis",
             embedTitle: "game setting emojis...",
             stageEmbed: true,
             buttons: true,
             canJoin: false,
             execute: () => this.setEmojis()
-        })
+        }
+
+        this.stages["ingame"].customPlayerStatus = (i) => {
+            if (this.players.at(i).other.alive) {
+                return `${this.players.at(i).user}\n`
+            } else {
+                return `~~${this.players.at(i).user}~~\n`
+            }
+        }
+
+        this.stageMap = ["lobby","options","emojis","ingame","winScreen"]
+
+        this.playerAddAction = (i) => {
+            this.players.set(i.user.id,{user: i.user, stats: {}, other: {alive: true}})
+
+            for (var i = 0; i < this.players.size; i++) {
+                this.players.at(i).other.emoji = this.defaultEmojis[i];
+            }
+        }
     }
 
     async editEmojiEmbed(edit) {
@@ -120,11 +162,10 @@ class Connect4Game extends Game {
      * @returns {Promise<void>} whether the game should continue (not cancelled)
      */
     async setEmojis() {
+
+        if (this.currentOptions.gamemode in ["Colorblind","Blind"]) return;
         let rCollector;
         try {
-            for (var i = 0; i < this.players.size; i++) {
-                this.players.at(i).other.emoji = this.defaultEmojis[i];
-            }
     
             await this.editEmojiEmbed(true);
     
@@ -155,6 +196,45 @@ class Connect4Game extends Game {
         
     }
 
+    /**
+     * For spin gamemode: Rotates the board clockwise until there is an available move
+     * WARNING: Infinite loop if board is full.
+     */
+    async rotateBoard() {
+        this.board = this.board.map((val,index) => matrix.map(row => row[index]).reverse())
+        
+        [this.currentOptions.width, this.currentOptions.height] = [this.currentOptions.height, this.currentOptions.width]
+        for (var i=0;i<this.moves.length;i++) {
+            let temp = this.moves[i][1];
+            this.moves[i][1] = this.moves[i][2];
+            this.moves[i][2] = this.width - this.moves[i][1] - 1;
+        }
+
+        //check if there is valid move
+        let valid = false;
+        for (var i=0;i<this.width;i++) {
+            if (this.board[0][i] == -1) {
+                valid = true;
+            }
+        }
+
+        if (! valid) {
+            this.rotateBoard();
+        }
+    }
+
+
+    async goNextPlayer() {
+        let index = Array.from(this.players.keys()).findIndex(s => s == this.currentPlayer.user.id)
+        while (true) {
+            index = (index + 1) % this.players.size;
+            if (this.players.at(index).other.alive) {
+                this.currentPlayer = this.players.at(index);
+                return;
+            }
+        }
+    }
+    
     async playGame() {
         //making sure winLength is at least minimum of width and height (otherwise impossible)
         if (
@@ -169,25 +249,23 @@ class Connect4Game extends Game {
 
         this.setEmptyBoard();
 
-        this.currentPlayer = this.players.at(0);
-
-        delete this.responseBody.components
+        this.currentPlayer = this.players.first();
 
         this.stageEmbed.setTitle(null);
 
         while (true) {
-            
-
-            if (this.winner != null) {resolve()}
-            //board is full
-            if (this.turn > this.currentOptions.height * this.currentOptions.width) {resolve()}
-
-            if (this.players.size == 1) {
-                this.winner = this.players.at(0).user;
-                return;
+            //rotates the board and moves if gamemode is Spin
+            if (this.currentOptions.gamemode == "Spin" && this.moves.length <= this.currentOptions.height * this.currentOptions.width) {
+                this.rotateBoard()
             }
-
+            
+        
             await this.printBoard(true);
+
+            if (this.winner != null || this.moves.length == this.currentOptions.height * this.currentOptions.width) {return}
+            //board is full
+        
+            
 
             const filter = (m) =>
                 m.author.id === this.currentPlayer.user.id &&
@@ -202,18 +280,15 @@ class Connect4Game extends Game {
                     time: this.currentOptions.timeLimit * 1000,
                     errors: ["time"],
                 })
-                .then(async (collected) => {
+                .then(async (collected,reason) => {
                     await collected.first().delete();
                     
                     let move = parseInt(collected.first().content) - 1;
 
-                    for (
-                        var i = this.currentOptions.height - 1;
-                        i >= 0;
-                        i--
-                    ) {
+                    for (var i = this.currentOptions.height - 1;i >= 0;i--) {
                         if (this.board[i][move] == -1) {
                             this.board[i][move] = this.currentPlayer.user.id;
+                            this.moves.push([this.currentPlayer.user.id,i,move])
                             break;
                         }
                     }
@@ -222,36 +297,30 @@ class Connect4Game extends Game {
                         this.winner = this.players.get(this.checkWin()).user;
                         
                     } else {
-                        this.currentPlayer = this.players.at(
-                            (Array.from(this.players)
-                                .map((p) => p[0])
-                                .indexOf(this.currentPlayer.user.id) +
-                                1) %
-                                this.players.size
-                        );
+                        this.goNextPlayer();
 
                         this.turn++;
                     }
 
                     
                 })
-                .catch(async (collected) => {
+                .catch(async (collected,reason) => {
                     await this.channel.send(
                         `<@${this.currentPlayer.user.id}> ran out of time!`
                     );
 
-                    let quitter = this.currentPlayer.user.id;
+                    
 
-                    //gets the next player in the collection (wraps around if last)
-                    this.currentPlayer = this.players.at(
-                        (Array.from(this.players)
-                            .map((p) => p[0])
-                            .indexOf(this.currentPlayer.user.id) +
-                            1) %
-                            this.players.size
-                    );
-                    //then delete original player
-                    this.players.delete(quitter);
+                    this.currentPlayer.other.alive = false;
+                    this.updateStatus();
+
+                    if (this.players.filter((player) => player.other.alive === true).size == 1) {
+                        this.winner = this.players.find((player) => player.other.alive === true).user;
+                    }
+
+                    this.goNextPlayer();
+                    
+                    
                 });
         }
     }
@@ -276,13 +345,20 @@ class Connect4Game extends Game {
      */
     async printBoard(edit) {
         let boardText = "";
+
+        if (this.moves.length >= 1) {
+            let lastMove = this.moves[this.moves.length - 1]
+            boardText += `<@${lastMove[0]}> moved: (${lastMove[2] + 1},${lastMove[1] + 1}) - ((1,1) is top left)\n\n`
+        }
+        
+
         for (var i = 0; i < this.currentOptions.height; i++) {
             for (var j = 0; j < this.currentOptions.width; j++) {
-                if (this.board[i][j] == -1) {
+                if (this.board[i][j] == -1 || this.currentOptions.gamemode == "Blind") {
                     boardText += "⚪";
                 }
-                //For deleted players who timed out, put black circle
-                else if (!this.players.has(this.board[i][j])) {
+                //For dead players who timed out, put black circle
+                else if (! this.players.get(this.board[i][j]).other.alive || this.currentOptions.gamemode == "Colorblind") {
                     boardText += "⚫";
                 } else {
                     boardText += this.players.get(this.board[i][j]).other.emoji;
@@ -290,14 +366,23 @@ class Connect4Game extends Game {
             }
             boardText += "\n";
         }
-        boardText += `\n\n  ${this.currentPlayer.other.emoji} - <@${
-            this.currentPlayer.user.id
-        }>'s turn. (Type 1-${this.currentOptions.width}) ${time(
-            Math.round(
-                (Date.now() + this.currentOptions.timeLimit * 1000) / 1000
-            ),
-            "R"
-        )}`;
+        
+
+        if (this.winner != null) {
+            boardText += `\n\n  ${this.players.get(this.winner.id).other.emoji} - <@${this.currentPlayer.user.id}> has won!`
+        } else if (this.turn > this.currentOptions.height * this.currentOptions.width) {
+            boardText += `Board is full. It's a draw!`
+        } else {
+            boardText += `\n\n  ${this.currentPlayer.other.emoji} - <@${
+                this.currentPlayer.user.id
+            }>'s turn. (Type 1-${this.currentOptions.width}) ${time(
+                Math.round(
+                    (Date.now() + this.currentOptions.timeLimit * 1000) / 1000
+                ),
+                "R"
+            )}`;
+        }
+        
 
         this.stageEmbed.setDescription(boardText);
 
@@ -374,6 +459,10 @@ class Connect4Game extends Game {
         }
 
         return -1;
+    }
+
+    createNewGame(interaction) {
+        new Connect4Game(interaction,this.currentOptions).create();
     }
 }
 

@@ -17,9 +17,7 @@ module.exports = {
     .setName("testgame")
     .setDescription("Tests the game class"),
     async execute(interaction) {
-        var game = new Game(interaction);
-
-        game.create();
+        var game = new Game(interaction).create();
     }
 }
 

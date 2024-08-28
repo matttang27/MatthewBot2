@@ -16,8 +16,6 @@ module.exports = {
     .setName("connect4")
     .setDescription("Creates a new Connect4 game"),
   async execute(interaction) {
-    var game = new Connect4Game(interaction);
-
-    game.create();
+    var game = new Connect4Game(interaction).create();
   },
 };
