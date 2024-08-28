@@ -212,3 +212,5 @@ describe("checkWin function", () => {
     expect(currentGame.checkWin()).toBe(3);
   });
 });
+
+//rotate board tests

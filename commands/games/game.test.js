@@ -46,20 +46,38 @@ beforeEach(async () => {
 
 
 describe("Lobby Stage", () => {
-	describe("Game Command", () => {
-		it("creates a lobby with player list and buttons", async () => {
-			let [response, game] = await goToLobby();
+	it("Allows players to join and leave when the game command is run", async () => {
+		let [response, game] = await goToLobby();
 
-			expect(game.players.at(0).user.id).toBe(bots[0].userId)
-			expect(game.players.size).toBe(1);
-			expect(response.embeds.at(0).title === "game game created! [1/4]")
-			expect(response.components[0].components.some(c => c.data.label === "Start")).toBeTruthy();
-			expect(response.components[0].components.some(c => c.data.label === "Join / Leave")).toBeTruthy();
-			expect(response.components[0].components.some(c => c.data.label === "Cancel")).toBeTruthy();
-		});
+		expect(game.players.at(0).user.id).toBe(bots[0].userId)
+		expect(game.players.size).toBe(1);
+		expect(response.embeds.at(0).title === "game game created! [1/4]")
+		expect(response.components[0].components.length).toBe(4);
+		expect(response.components[0].components[0].data.label).toBe("Start");
+		expect(response.components[0].components[1].data.label).toBe("Setup");
+		expect(response.components[0].components[2].data.label).toBe("Join / Leave");
+		expect(response.components[0].components[3].data.label).toBe("Cancel");
+		expect(game.stage.name).toBe("lobby")
+
+		await bots[1].clickButton("Join / Leave", response);
+		response = await client.waitForMessageUpdate(true);
+		expect(response.embeds.at(0).title).toBe("game game created! [2/4]");
+		expect(game.players.at(1).user.id).toBe(bots[1].userId)
+		expect(game.players.size).toBe(2);
+
+		await bots[2].clickButton("Join / Leave", response);
+		response = await client.waitForMessageUpdate(true);
+		expect(response.embeds.at(0).title).toBe("game game created! [3/4]");
+		expect(game.players.at(2).user.id).toBe(bots[2].userId)
+		expect(game.players.size).toBe(3);
+
+		await bots[2].clickButton("Join / Leave", response);
+		response = await client.waitForMessageUpdate(true);
+		expect(response.embeds.at(0).title).toBe("game game created! [2/4]");
+		expect(game.players.size).toBe(2);
 	});
 
-	describe("Other Clicks Join/Leave", () => {
+	describe("Join/Leave Button", () => {
 		it("adds user to player list if user not already in game", async () => {
 			let [response, game] = await goToLobby();
 
@@ -112,45 +130,9 @@ describe("Lobby Stage", () => {
 			expect(game.players.at(0).user.id).toBe(bots[1].userId);
 			expect(game.players.size).toBe(1);
 		});
-
-		
 	});
 
-	describe("Owner Clicks Start", () => {
-		it("transitions to Options Stage if minimum players joined", async () => {
-			let [response, game] = await goToLobby();
-
-			await bots[1].clickButton("Join / Leave", response);
-			oldResponse = await client.waitForMessageUpdate(true);
-			await bots[0].clickButton("Start", oldResponse);
-
-			response = await client.waitForMessageUpdate(true);
-
-			//player list should not change
-			expect(response.embeds.at(0).title).toBe("game game configuring...");
-			expect(response.embeds.at(0).description).toBe(oldResponse.embeds.at(0).description)
-			expect(response.embeds.at(1).description.includes("1. Example setting - ")).toBeTruthy();
-			expect(response.embeds.at(1).description.includes(`<@${bots[0].userId}>, change settings`)).toBeTruthy();
-			expect(game.players.size).toBe(2);
-			expect(response.components[0].components.some(c => c.data.label === "Continue")).toBeTruthy();
-			expect(response.components[0].components.some(c => c.data.label === "Leave Game")).toBeTruthy();
-			expect(response.components[0].components.some(c => c.data.label === "Cancel Game")).toBeTruthy();
-		});
-
-		it("shows error if fewer than minimum players", async () => {
-			let [response, game] = await goToLobby();
-
-			await bots[0].clickButton("Start", response);
-			let errorResponse = await client.waitForMessageCreate(true);
-
-			expect(errorResponse.embeds.at(0).description).toBe(
-				"Not enough players to start. (Minimum 2 players)"
-			);
-			expect(game.players.size).toBe(1);
-		});
-	});
-
-	describe("Other Clicks Start", () => {
+	describe("Other Clicks Start, Setup, Cancel", () => {
 		it("shows error for not being owner", async () => {
 			let [response, game] = await goToLobby();
 			
@@ -160,6 +142,81 @@ describe("Lobby Stage", () => {
 			expect(errorResponse.embeds.at(0).description).toBe(
 				"You are not the owner of this lobby!"
 			);
+
+			await bots[1].clickButton("Setup", response);
+			errorResponse = await client.waitForMessageCreate(true);
+
+			expect(errorResponse.embeds.at(0).description).toBe(
+				"You are not the owner of this lobby!"
+			);
+
+			await bots[1].clickButton("Cancel", response);
+			errorResponse = await client.waitForMessageCreate(true);
+
+			expect(errorResponse.embeds.at(0).description).toBe(
+				"You are not the owner of this lobby!"
+			);
+		});
+	});
+
+	describe("Owner Clicks Start", () => {
+		it("goes directly to Game Stage if minimum players joined", async () => {
+			let [response, game] = await goToLobby();
+
+			await bots[1].clickButton("Join / Leave", response);
+			response = await client.waitForMessageUpdate(true);
+			await bots[0].clickButton("Start", response);
+
+			response = await client.waitForMessageUpdate(true);
+
+			expect(response.embeds.at(0).title).toBe("game game ongoing!");
+			expect(response.components == null);
+		});
+
+		it("shows error if fewer than minimum players", async () => {
+			let [response, game] = await goToLobby();
+
+			await bots[0].clickButton("Start", response);
+			let errorResponse = await client.waitForMessageCreate(true);
+
+			expect(errorResponse.embeds.at(0).description).toBe(
+				"Not enough players to continue. (Minimum 2 players)"
+			);
+			expect(game.players.size).toBe(1);
+		});
+	});
+
+	describe("Owner Clicks Setup", () => {
+		it("transitions to Options Stage if minimum players joined", async () => {
+			let [response, game] = await goToLobby();
+
+			await bots[1].clickButton("Join / Leave", response);
+			oldResponse = await client.waitForMessageUpdate(true);
+			await bots[0].clickButton("Setup", oldResponse);
+
+			response = await client.waitForMessageUpdate(true);
+
+			//player list should not change
+			expect(response.embeds.at(0).title).toBe("game game configuring...");
+			expect(response.embeds.at(0).description).toBe(oldResponse.embeds.at(0).description)
+			expect(response.embeds.at(1).description.includes("1. Example setting - ")).toBeTruthy();
+			expect(response.embeds.at(1).description.includes(`<@${bots[0].userId}>, change options`)).toBeTruthy();
+			expect(game.players.size).toBe(2);
+			expect(response.components[0].components.some(c => c.data.label === "Continue")).toBeTruthy();
+			expect(response.components[0].components.some(c => c.data.label === "Leave")).toBeTruthy();
+			expect(response.components[0].components.some(c => c.data.label === "Cancel")).toBeTruthy();
+		});
+
+		it("shows error if fewer than minimum players", async () => {
+			let [response, game] = await goToLobby();
+
+			await bots[0].clickButton("Setup", response);
+			let errorResponse = await client.waitForMessageCreate(true);
+
+			expect(errorResponse.embeds.at(0).description).toBe(
+				"Not enough players to continue. (Minimum 2 players)"
+			);
+			expect(game.players.size).toBe(1);
 		});
 	});
 
@@ -175,33 +232,51 @@ describe("Lobby Stage", () => {
 			expect(game.players.size).toBe(1);
 		});
 	});
-
-	describe("Other Clicks Cancel", () => {
-		it("shows error for not being owner", async () => {
-			let [response, game] = await goToLobby();
-
-			await bots[1].clickButton("Cancel", response);
-			errorResponse = await client.waitForMessageCreate(true);
-
-			expect(errorResponse.embeds.at(0).description).toBe(
-				"You are not the owner of this lobby!"
-			);
-		});
-	});
 });
 
 describe("Options Stage", () => {
+	it("allows the owner to change and set options for the game", async () => {
+		let [response, game] = await goToOptions(3);
+			
+		expect(response.embeds.at(0).title).toBe("game game configuring...");
+		
+		expect(response.embeds.at(1).title).toBe("Options");
+		expect(response.embeds.at(1).description.includes(`<@${bots[0].userId}>`)).toBeTruthy();
+		expect(response.embeds.at(1).description.includes("Example setting - **5**")).toBeTruthy();
+
+		expect(response.components.length).toBe(1);
+		expect(response.components.at(0).components.length).toBe(4);
+		expect(response.components[0].components.some(c => c.data.label === "Start")).toBeTruthy();
+		expect(response.components[0].components.some(c => c.data.label === "Continue")).toBeTruthy();
+		expect(response.components[0].components.some(c => c.data.label === "Leave")).toBeTruthy();
+		expect(response.components[0].components.some(c => c.data.label === "Cancel")).toBeTruthy();
+
+		expect(game.stage.name).toBe("options")
+
+		await bots[0].sendMessage("1");
+		response = await client.waitForMessageUpdate(true);
+		expect(response.embeds.at(1).title).toBe("Editing Example setting")
+		expect(response.embeds.at(1).description).toBe("This is an example")
+
+		await bots[0].sendMessage("7");
+		response = await client.waitForMessageUpdate(true);
+		expect(response.embeds.at(1).title).toBe("Options")
+		expect(response.embeds.at(1).description.includes("Example setting - **7**")).toBeTruthy();
+
+	})
+
 	describe("Options Stage Start", () => {
 		it("changes lobby embed title, removes buttons, and sends new message with options list and buttons", async () => {
 			let [response, game] = await goToOptions(3);
 			
 			expect(response.embeds.at(0).title).toBe("game game configuring...");
 			expect(response.components.length).toBe(1);
-			expect(response.components.at(0).components.length).toBe(3);
+			expect(response.components.at(0).components.length).toBe(4);
 			expect(response.embeds.at(1).title).toBe("Options");
 			expect(
 				response.embeds.at(1).description.includes(`<@${bots[0].userId}>`)
 			).toBeTruthy();
+			expect(game.stage.name).toBe("options")
 		});
 	});
 
@@ -209,7 +284,7 @@ describe("Options Stage", () => {
 		it("cancels game if less than 3 players and deletes options message", async () => {
 			let [response, game] = await goToOptions(2);
 
-			await bots[0].clickButton("Leave Game", response);
+			await bots[0].clickButton("Leave", response);
 			response = await client.waitForMessageUpdate(true);
 			
 			expect(response.embeds.length).toBe(1);
@@ -221,7 +296,7 @@ describe("Options Stage", () => {
 		it("removes owner from players, sets next player as owner, and updates message if at least 3 players", async () => {
 			let [response, game] = await goToOptions(3);
 
-			await bots[0].clickButton("Leave Game", response);
+			await bots[0].clickButton("Leave", response);
 			response = await client.waitForMessageUpdate(true);
 			
 			expect(
@@ -247,7 +322,7 @@ describe("Options Stage", () => {
 		it("cancels game if less than 3 players and removes options embed", async () => {
 			let [response, game] = await goToOptions(2);
 
-			await bots[1].clickButton("Leave Game", response);
+			await bots[1].clickButton("Leave", response);
 			response = await client.waitForMessageUpdate(true);
 			
 			expect(response.embeds.length).toBe(1);
@@ -257,7 +332,7 @@ describe("Options Stage", () => {
 		it("updates lobby message if at least 3 players", async () => {
 			let [response, game] = await goToOptions(3);
 
-			await bots[1].clickButton("Leave Game", response);
+			await bots[1].clickButton("Leave", response);
 			response = await client.waitForMessageUpdate(true);
 			
 			expect(
@@ -269,6 +344,45 @@ describe("Options Stage", () => {
 			expect(
 				response.embeds.at(0).description.includes(`<@${bots[2].userId}>`)
 			).toBeTruthy();
+		});
+	});
+
+	describe("Other Clicks Start, Continue, Cancel", () => {
+		it("shows error for not being owner", async () => {
+			let [response, game] = await goToOptions(3);
+			
+			await bots[1].clickButton("Start", response);
+			let errorResponse = await client.waitForMessageCreate(true);
+
+			expect(errorResponse.embeds.at(0).description).toBe(
+				"You are not the owner of this lobby!"
+			);
+
+			await bots[1].clickButton("Continue", response);
+			errorResponse = await client.waitForMessageCreate(true);
+
+			expect(errorResponse.embeds.at(0).description).toBe(
+				"You are not the owner of this lobby!"
+			);
+
+			await bots[1].clickButton("Cancel", response);
+			errorResponse = await client.waitForMessageCreate(true);
+
+			expect(errorResponse.embeds.at(0).description).toBe(
+				"You are not the owner of this lobby!"
+			);
+		});
+	});
+
+	describe("Owner Clicks Start", () => {
+		it("goes directly to Game Stage", async () => {
+			let [response, game] = await goToOptions(2);
+			await bots[0].clickButton("Start", response);
+
+			response = await client.waitForMessageUpdate(true);
+
+			expect(response.embeds.at(0).title).toBe("game game ongoing!");
+			expect(response.components == null);
 		});
 	});
 
@@ -286,42 +400,16 @@ describe("Options Stage", () => {
 		});
 	});
 
-	describe("Other Clicks Continue", () => {
-		it("shows error for not being owner", async () => {
-			let [response, game] = await goToOptions(3);
-
-			await bots[1].clickButton("Continue", response);
-			let errorResponse = await client.waitForMessageCreate(true);
-
-			expect(errorResponse.embeds.at(0).description).toBe(
-				"You are not the owner of this lobby!"
-			);
-		});
-	});
-
 	describe("Owner Clicks Cancel", () => {
 		it("closes lobby, options embed removed", async () => {
 			let [response, game] = await goToOptions(3);
 			
-			await bots[0].clickButton("Cancel Game", response);
+			await bots[0].clickButton("Cancel", response);
 			response = await client.waitForMessageUpdate(true);
 			
 			expect(response.embeds.length).toBe(1);
 			expect(response.embeds.at(0).title).toBe("game game cancelled");
 			expect(response.embeds.at(0).description).toBe("Blame the leader");
-		});
-	});
-
-	describe("Other Clicks Cancel", () => {
-		it("shows error for not being owner", async () => {
-			let [response, game] = await goToOptions(3);
-
-			await bots[1].clickButton("Cancel Game", response);
-			let errorResponse = await client.waitForMessageCreate(true);
-
-			expect(errorResponse.embeds.at(0).description).toBe(
-				"You are not the owner of this lobby!"
-			);
 		});
 	});
 

@@ -89,9 +89,9 @@ describe("Emojis Stage", () => {
 		it("sets default emojis if emojis argument is empty", async () => {
 			let [response,game] = await goToConnect4Emojis(2);
 			expect(response.embeds.at(0).title).toBe("Connect4 game setting emojis...") 
-            expect(response.embeds.at(1).title).toBe("Set emojis");
-			console.log(response.embeds.at(1).description);
-			expect(response.embeds.at(1).description.includes(`<@${bots[0].userId}>`))
+            expect(response.embeds.at(1).title).toBe("Choose your piece!");
+			expect(response.embeds.at(1).description.includes(`<@${bots[0].userId}> - :blue_circle:`))
+			expect(response.embeds.at(1).description.includes(`<@${bots[1].userId}> - :red_circle:`))
 			expect(game.stage.name === "emojis");
 		})
 
@@ -128,200 +128,144 @@ describe("Emojis Stage", () => {
 			expect(emojiResponse.embeds.at(0).description.includes("aplusrank"));
 		});
 	});
-
-	describe("Buttons are the same as options stage, and update emoji response accordingly.", () => {
-		describe("Owner Clicks Leave", () => {
-			it("cancels game if less than 3 players and deletes options message", async () => {
-				let [mainResponse, emojiResponse] = await goToEmojis(2);
-				await bots[0].clickButton("Leave Game", emojiResponse);
-				[mainResponse, emojiResponse] = await Promise.all([
-					client.waitForMessageUpdate(
-						{ embeds: [{ data: { title: "Connect4 game cancelled" } }] },
-						true
-					),
-					client.waitForMessageDelete({
-						embeds: [{ data: { title: "Set emojis" } }],
-					}),
-				]);
-	
-				
-			});
-	
-			it("removes owner from players, sets next player as owner, and updates lobby & emoji message if at least 3 players", async () => {
-				let [mainResponse, emojisResponse] = await goToEmojis(3);
-				await bots[0].clickButton("Leave Game", emojisResponse);
-				[mainResponse, emojisResponse] = await Promise.all([
-					client.waitForMessageUpdate(
-						{
-							embeds: [{ data: { title: "Connect4 game setting up..." } }],
-						},
-						true
-					),
-					client.waitForMessageUpdate({
-						embeds: [{ data: { title: "Set emojis" } }],
-					}),
-				]);
-	
-				expect(mainResponse.embeds.at(0).description.includes(`<@${bots[0].userId}>`)).toBeFalsy();
-				expect(mainResponse.embeds.at(0).description.includes(`<@${bots[1].userId}> - :crown:`)).toBeTruthy();
-				expect(mainResponse.embeds.at(0).description.includes(`<@${bots[2].userId}>`)).toBeTruthy();
-	
-				expect(emojisResponse.embeds.at(0).description.includes(`<@${bots[0].userId}>`)).toBeFalsy();
-				expect(emojisResponse.embeds.at(0).description.includes(`<@${bots[1].userId}>`)).toBeTruthy();
-			});
-		});
-	
-		describe("Other Clicks Leave", () => {
-			it("cancels game if less than 3 players and deletes options message", async () => {
-				let [mainResponse, emojisResponse] = await goToEmojis(2);
-				await bots[1].clickButton("Leave Game", emojisResponse);
-				[mainResponse, emojisResponse] = await Promise.all([
-					client.waitForMessageUpdate(
-						{ embeds: [{ data: { title: "Connect4 game cancelled" } }] },
-						true
-					),
-					client.waitForMessageDelete({
-						embeds: [{ data: { title: "Set emojis" } }],
-					}),
-				]);
-			});
-	
-			it("updates emoji list and lobby message if at least 3 players", async () => {
-				let [mainResponse, emojisResponse] = await goToEmojis(3);
-				bots[1].clickButton("Leave Game", emojisResponse);
-
-				let successResponse;
-	
-				[mainResponse, emojisResponse, successResponse] = await Promise.all(
-					[client.waitForMessageUpdate({ embeds: [{ data: { title: "Connect4 game setting up..." } }] }), 
-					 client.waitForMessageUpdate({embeds: [{data: {title: "Set emojis"}}]}),
-					 client.waitForMessageCreate({embeds: [{data: {description: "You have left the game."}}]})
-					])
-	
-				expect(
-					mainResponse.embeds.at(0).description.includes(`<@${bots[0].userId}> - :crown:`)
-				).toBeTruthy();
-				expect(
-					mainResponse.embeds.at(0).description.includes(`<@${bots[1].userId}> - :crown:`)
-				).toBeFalsy();
-				expect(
-					mainResponse.embeds.at(0).description.includes(`<@${bots[2].userId}>`)
-				).toBeTruthy();
-
-				expect(
-					emojisResponse.embeds.at(0).description.includes(`<@${bots[0].userId}>`)
-				).toBeTruthy();
-				expect(
-					emojisResponse.embeds.at(0).description.includes(`<@${bots[1].userId}>`)
-				).toBeFalsy();
-				expect(
-					emojisResponse.embeds.at(0).description.includes(`<@${bots[2].userId}>`)
-				).toBeTruthy();
-			});
-		});
-	
-		describe("Owner Clicks Continue", () => {
-			it("deletes message and transitions to game stage", async () => {
-				let [mainResponse, emojisResponse] = await goToEmojis(3);
-				await bots[0].clickButton("Continue", emojisResponse);
-
-				let emojisDelete, gameResponse;
-				[mainResponse, emojisDelete, gameResponse] = await Promise.all([
-					client.waitForMessageUpdate({embeds: [{ data: { title: "Connect4 game ongoing!" } }]}),
-					client.waitForMessageDelete({embeds: [{ data: { title: "Set emojis" } }]}),
-					client.waitForMessageCreate({embeds: [{}]})
-				]);
-
-				expect(gameResponse.embeds.at(0).description.includes(`<@${bots[0].userId}>`)).toBeTruthy();
-			});
-		});
-	
-		describe("Other Clicks Continue", () => {
-			it("shows error for not being owner", async () => {
-				let [mainResponse, emojisResponse] = await goToEmojis(2);
-				await bots[1].clickButton("Continue", emojisResponse);
-	
-				response = await client.waitForMessageCreate(true);
-	
-				expect(response.embeds.at(0).description).toBe(
-					"You are not the owner of this lobby!"
-				);
-			});
-		});
-	
-		describe("Owner Clicks Cancel", () => {
-			it("closes lobby, option message deleted", async () => {
-				let [mainResponse, emojisResponse] = await goToEmojis(2);
-				await bots[0].clickButton("Cancel Game", emojisResponse);
-				[mainResponse, emojisResponse] = await Promise.all([
-					client.waitForMessageUpdate(
-						{ embeds: [{ data: { title: "Connect4 game cancelled" } }] },
-						true
-					),
-					client.waitForMessageDelete({
-						embeds: [{ data: { title: "Set emojis" } }],
-					}),
-				]);
-	
-				expect(mainResponse.embeds.at(0).description).toBe("Blame the leader");
-			});
-		});
-	
-		describe("Other Clicks Cancel", () => {
-			it("shows error for not being owner", async () => {
-				let [mainResponse, emojisResponse] = await goToEmojis(2);
-				bots[1].clickButton("Cancel Game", emojisResponse);
-	
-				response = await client.waitForMessageCreate(true);
-	
-				expect(response.embeds.at(0).description).toBe(
-					"You are not the owner of this lobby!"
-				);
-	
-				expect(response.embeds.at(0).description).toBe(
-					"You are not the owner of this lobby!"
-				);
-			});
-		});
-	});
 });
 
 describe("Game Stage", () => {
 
+	it("Plays a game of connect4", async () => {
+		let [response, game] = await goToConnect4Game(2);
+
+		for (var i=0;i<3;i++) {
+			await bots[0].sendMessage("4");
+			response = client.waitForMessageUpdate(true);
+			await bots[1].sendMessage("3");
+			response = client.waitForMessageUpdate(true);
+		}
+
+		await bots[0].sendMessage("4");
+		let winScreen;
+		[response,winScreen] = await Promise.all([client.waitForMessageUpdate(true), client.waitForMessageCreate(true)]);
+		
+	})
 	describe("Game Stage Start", () => {
 		it("changes the lobby embed title, sends empty board asking player 1 to play.", async () => {
-			let [mainResponse, gameResponse] = await goToGame(2);
-			console.log(gameResponse.embeds.at(0).data.description);
-            expect(mainResponse.embeds.at(0).data.title).toBe("Connect4 game ongoing!") 
-            expect(gameResponse.embeds.at(0).data.description.includes(userBot[0])).toBeTruthy();
+			let [response, game] = await goToConnect4Game(2);
+			console.log(response.embeds.at(1).data.description);
+            expect(response.embeds.at(0).title).toBe("Connect4 game ongoing!")
+			//whiteCircleCount = split.length - 1
+			expect(response.embeds.at(1).description.split("⚪").length).toBe(43);
+            expect(response.embeds.at(1).description.includes(bots[0].userId)).toBeTruthy();
+			expect(game.currentOptions.width).toBe(7);
+			expect(game.currentOptions.height).toBe(6);
+			expect(game.currentOptions.winLength).toBe(4);
+			expect(game.currentOptions.timeLimit).toBe(30);
 		});
 	});
+	//gamemodes work
+
+	describe("Options work", () => {
+		it("changes the board size if width / height changed", async () => {
+			let [response, game] = await goToConnect4Game(2,{width: 5, height: 8});
+			expect(game.currentOptions.width).toBe(5);
+			expect(game.currentOptions.height).toBe(8);
+			expect(response.embeds.at(1).description.split("⚪").length).toBe(41);
+		})
+		it("changes the win length if winLength changed", async () => {
+			let [response, game] = await goToConnect4Game(2, {winLength: 3});
+			game.board[5][0] = game.board[5][1] = game.players.at(0).user.id;
+			
+			await bots[0].sendMessage("3");
+			let winScreen;
+			[response,winScreen] = await Promise.all([client.waitForMessageUpdate(true), client.waitForMessageCreate(true)]);
+		})
+		it("changes the time to move if timeLimit changed", async () => {
+			let [response, game] = await goToConnect4Game(2, {timeLimit: 10});
+
+			let winScreen;
+			[response,winScreen] = await Promise.all([client.waitForMessageUpdate(true,undefined,15000), client.waitForMessageCreate(true,undefined,15000)]);
+		})
+	})
+
 
 	describe("Current plays", () => {
-		it("deletes the move and shows an error message if the column is full", async () => {
-			// Implementation here
-		});
 
 		it("deletes the move, sends a new message, and proceeds to the next turn if no win is detected", async () => {
-			// Implementation here
+			let [response, game] = await goToConnect4Game(2);
+			await bots[0].sendMessage("1")
+			let deletedMove;
+			[response, deletedMove] = await Promise.all(client.waitForMessageUpdate(true),client.waitForMessageDelete({author: {id: bots[0].userId}}));
 		});
 
 		it("deletes the move, declares the player as the winner, and transitions to the end stage if a win is detected", async () => {
-			// Implementation here
+			let [response, game] = await goToConnect4Game(2);
+			game.board[5][0] = game.board[5][1] = game.board[5][2] = bots[0].userId;
+
+			await bots[0].sendMessage("4")
+			let deletedMove, winScreen;
+			[response, deletedMove, winScreen] = await Promise.all(
+				client.waitForMessageUpdate(true),
+				client.waitForMessageDelete({author: {id: bots[0].userId}}),
+				client.waitForMessageCreate(true)
+			);
+		});
+
+		it("does not respond if the column is full.", async () => {
+			let [response, game] = await goToConnect4Game(2);
+			for (var i=0;i<6;i++) {
+				game.board[i][4] = bots[i % 2].userId;
+			}
+			
+			try {
+				await bots[0].sendMessage("4")
+				let response = await client.waitForMessageUpdate(true);
+				return new Error("Message update when not supposed to")
+			} catch {};
+
+
 		});
 
 		it("deletes the move, declares a draw, and transitions to the end stage if the board is full", async () => {
-			// Implementation here
+			let [response, game] = await goToConnect4Game(2,{width:2,height:2});
+			game.board[0][0] = game.board[1][0] = game.board[1][1] = bots[0].userId;
+
+			await bots[0].sendMessage("2")
+			let deletedMove, winScreen;
+			[response, deletedMove, winScreen] = await Promise.all(
+				client.waitForMessageUpdate(true),
+				client.waitForMessageDelete({author: {id: bots[0].userId}}),
+				client.waitForMessageCreate(true)
+			);
 		});
+
+
 	});
 
 	describe("Current times out", () => {
 		it("removes the player from the game, turns their pieces black, and proceeds to the next turn if at least 3 players remain", async () => {
-			// Implementation here
+			let [response,game] = await goToConnect4Game(3);
+			game.board[0][0] = bots[0].userId;
+
+			await new Promise(r => setTimeout(r,25000));
+			response = await client.waitForMessageUpdate(true,undefined,10000);
+
+			expect(response.embeds.at(0).description.includes(`~~<@${bots[1].userId}>~~`)).toBeTruthy()
+			expect(response.embeds.at(1).description.split("⚫").length).toBe(2);
+			expect(respones.embeds.at(1).description.includes(bots[1].userId)).toBeTruthy();
+			
+			
+
 		});
 
 		it("declares the remaining player as the winner and transitions to the end stage if only 2 players are left", async () => {
-			// Implementation here
+			let [response,game] = await goToConnect4Game(2, {timeLimit: 5000});
+			game.board[0][0] = bots[0].userId;
+
+			await new Promise(r => setTimeout(r,3000));
+			response, winScreen = await Promise.all(client.waitForMessageUpdate(true), client.waitForMessageCreate(true));
+
+			expect(response.embeds.at(0).description.includes(`<@${bots[1].userId}> has won!`)).toBeTruthy()
+			expect(winScreen.embeds.at(0).title).toBe("We have a winner!");
+			expect(winScreen.embeds.at(0).description).toBe(`All hail <@${bots[1].userId}>`)
 		});
 	});
 });
