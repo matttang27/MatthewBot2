@@ -248,7 +248,7 @@ class UserBot {
     }
     
     await this.page.waitForSelector(`[id="message-accessories-${message.id}"]`, {timeout: 5000})
-    await new Promise((r) => setTimeout(r, 2000));
+    await new Promise((r) => setTimeout(r, 500));
 
     //find what "row" the button is on (embeds count as rows too)
     let button = await this.page.evaluateHandle((message,buttonName) => {
@@ -266,8 +266,6 @@ class UserBot {
     if (! button) {
       throw new Error("Button not found.")
     }
-
-    await new Promise((r) => setTimeout(r, 1000));
     await button.click()
 
   }

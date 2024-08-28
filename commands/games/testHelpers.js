@@ -2,7 +2,7 @@
 
 const MatthewClient = require("@root/matthewClient");
 const UserBot = require("@root/test/userBot");
-const { Message } = require("discord.js");
+const { Message, ButtonInteraction } = require("discord.js");
 const Game = require("./game");
 
 /**
@@ -57,9 +57,9 @@ async function goToOptionsBase(gameCommand, bots, client, numPlayers, options={}
 
 		for (var i = 1; i < numPlayers; i++) {
 			let user = await client.users.fetch(bots[i].userId)
-			game.players.set(user.id, {user: user, stats: {}, other: {}})
+			game.playerAddAction({user: user})
 		}
-		await bots[0].clickButton("Start", response);
+		await bots[0].clickButton("Setup", response);
 
 		response = await client.waitForMessageUpdate({id: response.id});
 

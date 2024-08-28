@@ -16,30 +16,41 @@
     - QOL:
         - **Make lobby close if not enough players at any point (currently does not work in settings)**
         - **Add stage timers**
-        - If time runs out, do not go to next stage and instead quit game
-        - Delete input setting messages
-        - Delete connect4 move messages
-        - Keep timed out players in lobby, but cannot move.
-        - Quickstart button in lobby
+        - **If time runs out, do not go to next stage and instead quit game**
+        - **Delete input setting messages**
+        - **Delete connect4 move messages**
+        - **Keep timed out players in lobby, but cannot move.**
+        - **Quickstart button in lobby**
         - **Not enough players error should show minimum players**
-        - Make buttons more clearer (instead of Join / Leave, have a green Join button and a Start (For Owner) button)
+        - **Make buttons more clearer (instead of Join / Leave, have a green Join button and a Start (For Owner) button)**
 
     - **Set emojis**
-    - Better win screen
-    - Gamemodes (blind)
-    - Play again button
+    - **Better win screen**
+    - **Gamemodes**
+        - **Colorblind - Piece colors are not shown.**
+        - **Blind - No pieces are shown.**
+        - **Spin - Either: choose what side you can place the piece from, or gravity rotates in a clockwise direction each turn.**
+    - **Play again button**
+    - If only one stage before game start, remove "Continue" button.
+    - Make gamemode selection better, allow user to browse and see more detail
 - Set up mongodb
     - Create profile / stats
+        - Total games
+        - Total wins
     - Stats for Connect4
+        - Total games
+        - Total wins
+        - Total pieces moved
+        - Total potential wins blocked
     - Save Game Settings per channel
-        - Need to create channelManager object that will load from online database
+        - Need to create channelManager object that will load options from the online database
     - Games object in client (?)
 
 ### Maybe TODO:
 - Make UserBot actions return the interaction. (Ex. UserBot.sendMessage uses the client.waitForMessageCreate, and returns the message) - Not really needed right now though (?)
 - **Make mainEmbed title be set automatically when a new stage arrives.**
 - Make emoji selection part of GameManager so it can be applied to other games
-- matchesSimplifiedProperties can accept functions? For example, to allow a message with embed title containing "Hello", can do, matchesSimplifiedProperties({embeds: [{data: {title: (t) => t.includes("Hello")}}]}) - I can see use cases, but it might be better just to expect test.
+- **matchesSimplifiedProperties can accept functions? For example, to allow a message with embed title containing "Hello", can do, matchesSimplifiedProperties({embeds: [{data: {title: (t) => t.includes("Hello")}}]}) - I can see use cases, but it might be better just to expect test.**
 - Only one game per channel?    
 
 
