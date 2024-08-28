@@ -22,7 +22,7 @@ const MatthewClient = require("@root/matthewClient");
 
 /**
  * This class handles the setup, configuration, and execution of a multiplayer game within a Discord server.
- * It manages player interactions, game settings, and various game stages such as the lobby, in-game play, and the win screen.
+ * It manages player interactions, game options, and various game stages such as the lobby, in-game play, and the win screen.
  * 
  */
 class Game {
@@ -30,13 +30,16 @@ class Game {
      * Initializes a new game instance.
      * 
      * @param {CommandInteraction} interaction - The interaction that initiated the game.
+     * @param {Object} options - The options for the game
      */
-    constructor(interaction) {
+    constructor(interaction,currentOptions={}) {
         this.properties = {
             gameName: "game",
             minPlayers: 2,
             maxPlayers: 4,
         };
+
+        /** @type {Array<{name: string, label: string, desc: string, type: string, value: any, filter: function(Message) => boolean}>} */
         this.options = [
             {
                 name: "example",
@@ -53,7 +56,7 @@ class Game {
         /**
          * @type {Object} - Holds the current game options as set by the user.
          */
-        this.currentOptions = {};
+        this.currentOptions = currentOptions;
 
         /** @type {MatthewClient}*/
         this.client = interaction.client
@@ -75,7 +78,7 @@ class Game {
          * The embed in the main response message (shows list of players)
          * @type {EmbedBuilder}
          */
-        this.mainEmbed = new EmbedBuilder().setColor("Green")
+        this.statusEmbed = new EmbedBuilder().setColor("Green")
 
         /**
          * The embed for stages (ex. options list)
@@ -121,45 +124,70 @@ class Game {
         });
 
         /**
+         * The actions to do when a player is added to the game (for example, setting a default emoji)
+         * @type {function(number): any} the userid of the user added.
+         */
+        this.playerAddAction;
+
+        /**
          * @type {User|null}
          */
         this.winner = null;
 
-        /** @type {[{name: string, embedTitle: string, execute: function(), stageEmbed: boolean, canJoin: boolean, buttons: boolean}]} */
-        this.stages = [
-            {
+        /** 
+         * @type {Object.<string, {name: string, embedTitle: string, setup?: function(), execute?: function(), customPlayerStatus?: (number) => string, stageEmbed?: boolean, canJoin?: boolean, buttons?: boolean}>}
+         */
+        this.stages = {
+            lobby: {
                 name: "lobby",
                 embedTitle: "game created!",
                 stageEmbed: false,
                 buttons: true,
                 canJoin: true,
-                execute: () => this.lobby()
+                execute: () => this.lobbyStage()
             },
-            {
-                name: "settings",
+            options: {
+                name: "options",
                 embedTitle: "game configuring...",
                 stageEmbed: true,
                 buttons: true,
                 canJoin: false,
-                execute: () => this.inputSettings()
+                execute: () => this.optionsStage()
             },
-            {
+            ingame: {
                 name: "ingame",
                 embedTitle: "game ongoing!",
                 stageEmbed: true,
                 buttons: false,
                 canJoin: false,
+                customPlayerStatus: (i) => `${this.players.at(i).user}\n`,
                 execute: () => this.playGame()
             },
-            {
+            winScreen: {
                 name: "winScreen",
                 embedTitle: "game finished",
-                stageEmbed: false,
+                stageEmbed: true,
                 canJoin: false,
                 buttons: false,
+                customPlayerStatus: (i) => {
+                    if (this.winner === this.players.at(i).user) {
+                        return `***${this.players.at(i).user} - ***:trophy:\n`
+                    } else {
+                        return `${this.players.at(i).user}\n`
+                    }},
                 execute: () => this.winScreen()
             }
-        ]
+        };
+        
+
+        /** 
+         * @type {Array<string>}
+         * @default ["lobby","options","ingame","winScreen"]
+         */
+        this.stageMap = ["lobby","options","ingame","winScreen"]
+
+        /** @type {{name: string, embedTitle: string, setup?: function(), execute?: function(), customPlayerStatus?: function(), stageEmbed?: boolean, canJoin?: boolean, buttons?: boolean}} */
+        this.stage = this.stages[this.stageMap[0]]
 
         this.errMessages = {
             "cancelled": "Blame the leader",
@@ -167,29 +195,67 @@ class Game {
             "not enough": "Not enough players! Fake friends fr",
             "time": "Make sure to press the button!"
         };
+
+        this.ongoing = true;
+
+        /** @param {ButtonInteraction} i */
+        this.playerAddAction = (i) => {
+            this.players.set(i.user.id, {user: i.user, stats: {}, other: {}});
+        }
     }
-    //TODO: Combine both lobby list and other responses into one message (why didn't I think of this earlier??)
+
+    /** Sets each option in this.currentOptions to the default values of this.options if it is not already set */
+    setDefaultOptions() {
+        this.options.forEach(option => {
+            if (!(option.name in this.currentOptions)) {
+                this.currentOptions[option.name] = option.value;
+            }
+        })
+    }
+
+    /** Goes to the next stage, or sets this.ongoing to false if no more stages. */
+    goNextStage() {
+        let index = this.stageMap.indexOf(this.stage.name);
+        if (index == this.stageMap.length - 1) {
+            this.ongoing = false;
+        } else {
+            this.stage = this.stages[this.stageMap[index + 1]]
+        }
+    }
+    
     //GOALS: Limit the amount of message updates / creates (costs time / complexity)
     //       but make code as clear as possible, and reduce repetitiveness.
+
+    async runStage() {
+        this.responseBody.embeds = this.stage.stageEmbed ? [this.statusEmbed,this.stageEmbed] : [this.statusEmbed]
+        if (this.stage.buttons === true) {
+            await this.setupButtons();
+        } else {
+            this.responseBody.components = [];
+        }
+
+        if (this.stage.setup) {await this.stage.setup()};
+        await this.updateStatus();
+        if (this.stage.execute) {await this.stage.execute()};
+
+        this.goNextStage();
+    }
     
     /**
      * Creates and starts the game, executing all stages in this.stages sequentially.
      */
     async create() {
         try {
+            this.setDefaultOptions();
+            this.playerAddAction(this.interaction);
             this.mainResponse = await this.interaction.reply({content: "Loading...", fetchReply: true});
 
             this.client.games.set(this.client.games.size,this);
 
-            for (var i in this.stages) {
-                this.stage = this.stages[i];
-                this.responseBody.embeds = this.stage.stageEmbed ? [this.mainEmbed,this.stageEmbed] : [this.mainEmbed]
-                if (this.stage.buttons === true) {
-                    await this.setupButtons();
-                }
-                await this.updateLobby();
-                await this.stages[i].execute();
+            while (this.ongoing) {
+                await this.runStage();
             }
+            
 
         } catch (err) {
            this.handleCancellation(err);
@@ -223,10 +289,13 @@ class Game {
      */
     async setupButtons() {
         this.buttons.setComponents(
-            new ButtonBuilder().setCustomId("continue").setLabel(this.stage.name === "lobby" ? "Start" : "Continue").setStyle(ButtonStyle.Primary)
-            ,new ButtonBuilder().setCustomId("joinleave").setLabel(this.stage.name === "lobby" ? "Join / Leave" : "Leave Game").setStyle(ButtonStyle.Secondary)
-            ,new ButtonBuilder().setCustomId("cancel").setLabel(this.stage.name === "lobby" ? "Cancel" : "Cancel Game").setStyle(ButtonStyle.Danger)
+            new ButtonBuilder().setCustomId("start").setLabel("Start").setStyle(ButtonStyle.Success),
+            new ButtonBuilder().setCustomId("continue").setLabel(this.stage.name === "lobby" ? "Setup" : "Continue").setStyle(ButtonStyle.Primary)
+            ,new ButtonBuilder().setCustomId("joinleave").setLabel(this.stage.name === "lobby" ? "Join / Leave" : "Leave").setStyle(ButtonStyle.Secondary)
+            ,new ButtonBuilder().setCustomId("cancel").setLabel(this.stage.name === "lobby" ? "Cancel" : "Cancel").setStyle(ButtonStyle.Danger)
         );
+
+        
 
         this.responseBody.components = [this.buttons];
     }
@@ -234,7 +303,7 @@ class Game {
     /**
      * Creates button collectors to handle button interactions for the current stage.
      * 
-     * @param {Function} updateStage - Function to update the stage when required.
+     * @param {Function} updateStage - Function to update the stageEmbed when player list is changed (for example, editing an emojis embed if someone leaves)
      * @returns {Promise<void>} Resolves when the button collector ends.
      */
     async createButtonCollectors(updateStage) {
@@ -245,33 +314,41 @@ class Game {
         });
 
         this.buttonCollector.on("collect", async (i) => {
-                
-            if (i.customId === "continue") {
-                if (i.user.id == this.players.at(0).user.id) {
-                    
-                    if (this.players.size < this.properties.minPlayers) {
-                        //this can only occur during lobby stages
-                        await i.reply(
-                            errorEmbed(`Not enough players to continue. (Minimum ${this.properties.minPlayers} players)`)
-                        );
-                    } else {
-                        await i.deferUpdate();
-                        this.buttonCollector.stop();
-                    }
-                } else {
+            if (i.customId !== "joinleave" && i.user.id != this.players.at().user.id) {
+                await i.reply(
+                    errorEmbed("You are not the owner of this lobby!")
+                );
+                return;
+            }
+            if (i.customId === "start") {
+                if (this.players.size < this.properties.minPlayers) {
+                    //this can only occur during lobby stages
                     await i.reply(
-                        errorEmbed("You are not the owner of this lobby!")
+                        errorEmbed(`Not enough players to continue. (Minimum ${this.properties.minPlayers} players)`)
                     );
+                }
+                else {
+                    //set stage to one before game stage (because goToNextStage gets called)
+                    this.stage = this.stages[this.stageMap[this.stageMap.indexOf("ingame") - 1]];
+                    this.buttonCollector.stop();
+                }
+            }
+            if (i.customId === "continue") {
+                if (this.players.size < this.properties.minPlayers) {
+                    //this can only occur during lobby stages
+                    await i.reply(
+                        errorEmbed(`Not enough players to continue. (Minimum ${this.properties.minPlayers} players)`)
+                    );
+                }
+                else {
+                    await i.deferUpdate();
+                    this.buttonCollector.stop();
                 }
             } else if (i.customId === "cancel") {
-                if (i.user.id == this.players.at(0).user.id) {
-                    await i.deferUpdate();
-                    this.buttonCollector.stop("cancelled");
-                } else {
-                    await i.reply(
-                        errorEmbed("You are not the owner of this lobby!")
-                    );
-                }
+               
+                await i.deferUpdate();
+                this.buttonCollector.stop("cancelled");
+                
             } else if (i.customId === "joinleave") {
                 if (this.players.has(i.user.id)) {
                     await i.deferUpdate();
@@ -284,7 +361,7 @@ class Game {
                         this.buttonCollector.stop("not enough")
                     } else {
                         await updateStage();
-                        await this.updateLobby(true);
+                        await this.updateStatus(true);
                         
                     }
                 } else {
@@ -294,10 +371,12 @@ class Game {
                         await i.reply(errorEmbed("Sorry, the lobby is full!"));
                     } else {
                         await i.deferUpdate();
-                        this.players.set(i.user.id, {user: i.user, stats: {}, other: {}});
+                        
+                        
+                        this.playerAddAction(i)
 
                         await updateStage();
-                        await this.updateLobby(true);
+                        await this.updateStatus(true);
                         
                     }
                 }
@@ -317,29 +396,29 @@ class Game {
     }
 
     /**
-     * Updates the lobby by modifying the mainEmbed description to display the list of current players.
-     * @param {boolean} edit - whether to edit the mainResponse message immediately.
+     * Modifies the statusEmbed description to display the list of current players and correct stage title.
+     * @param {boolean} editNow - whether to edit the mainResponse message immediately.
      */
 
-    async updateLobby(edit = false) {
+    async updateStatus(editNow = false) {
         let playerString = ``;
         for (var i = 0; i < this.players.size; i++) {
-            if (i == 0) {
-                playerString += `${this.players.at(i).user} - :crown:\n`;
+            if (this.stage.customPlayerStatus) {
+                playerString += this.stage.customPlayerStatus(i)
             } else {
-                playerString += `${this.players.at(i).user}\n`;
+                if (i == 0) {
+                    playerString += `${this.players.at(i).user} - :crown:\n`;
+                } else {
+                    playerString += `${this.players.at(i).user}\n`;
+                }
             }
         }
 
-        this.mainEmbed.setTitle(`${this.properties.gameName} ${this.stage.embedTitle}` + 
+        this.statusEmbed.setTitle(`${this.properties.gameName} ${this.stage.embedTitle}` + 
             (this.stage.canJoin ? ` [${this.players.size}/${this.properties.maxPlayers}]` : ""));
-        this.mainEmbed.setDescription(playerString);
+        this.statusEmbed.setDescription(playerString);
 
-        
-
-        if (edit) {
-            await this.mainResponse.edit(this.responseBody)
-        };
+        if (editNow) {await this.mainResponse.edit(this.responseBody)};
     }
 
     /**
@@ -347,7 +426,7 @@ class Game {
      * 
      * Resolves if the lobby was successful, otherwise rejects with a reason.
      */
-    async lobby() {
+    async lobbyStage() {
         await this.mainResponse.edit(this.responseBody)
         await this.createButtonCollectors(() => {});
     }
@@ -367,23 +446,22 @@ class Game {
                 })
                 .join("\n")}\n\n${this.players.at(
                 0
-            ).user}, change settings by typing the option number`
+            ).user}, change options by typing the option number`
         );
         if (edit) { await this.mainResponse.edit(this.responseBody)};
     }
+    
+    
     /**
-     * Handles the settings input phase, allowing the game owner to configure game settings.
+     * Handles the options input phase, allowing the game owner to configure game options.
      * 
-     * @returns {Promise<void>} Resolves if the settings were successfully configured, otherwise rejects.
+     * @returns {Promise<void>} Resolves if the options were successfully configured, otherwise rejects.
      */
-    async inputSettings() {
+    async optionsStage() {
         /** @type {MessageCollector} */
         let oCollector;
         try {
-            this.currentOptions = this.options.reduce((obj, cur) => {
-                obj[cur.name] = cur.value;
-                return obj;
-            }, {});
+            
     
             var optionSelecting = true;
     
@@ -398,7 +476,8 @@ class Game {
             });
     
             let oFilter = (m) => m.author.id == this.players.at(0).user.id;
-    
+
+            /** @type {} */
             let oSelected;
     
             oCollector.on("collect", async (m) => {
@@ -408,6 +487,7 @@ class Game {
                     parseInt(m.content) <= this.options.length
                 ) {
                     await m.delete();
+
                     oSelected = this.options[parseInt(m.content) - 1];
     
                     this.stageEmbed
@@ -424,7 +504,13 @@ class Game {
     
                 } else if (!optionSelecting && oFilter(m)) {
                     await m.delete();
-                    this.currentOptions[oSelected.name] = parseInt(m.content);
+
+                    if (oSelected.type == "num") {
+                        this.currentOptions[oSelected.name] = parseInt(m.content);
+                    } else if (oSelected.type == "selection") {
+                        this.currentOptions[oSelected.name] = oSelected.selections[parseInt(m.content) - 1];
+                    }
+                    
     
                     await this.showOptionsList(true);
     
@@ -465,23 +551,38 @@ class Game {
      * Displays the win screen with the winner's details.
      */
     async winScreen() {
-        this.responseBody.components = [];
-        await this.mainResponse.edit(this.responseBody);
-        
+        const playAgain = new ActionRowBuilder().setComponents(
+            new ButtonBuilder().setCustomId("playagain").setLabel("Play Again").setStyle(ButtonStyle.Primary));
+
+        const embed = new EmbedBuilder()
         if (this.winner != null) {
-            const victoryEmbed = new EmbedBuilder()
+            embed
                 .setTitle("We have a winner!")
                 .setDescription(`All hail ${this.winner}`)
-                .setColor("Green");
-            await this.channel.send({ embeds: [victoryEmbed] });
+                .setColor("Green")
+                .setImage(this.winner.displayAvatarURL());
+                
+            
         } else {
-            const noVictoryEmbed = new EmbedBuilder()
+            embed
                 .setTitle("There was no winner...")
                 .setDescription(`Everyone's a loser.`)
                 .setColor("Red");
-            await this.channel.send({ embeds: [noVictoryEmbed] });
         }
-        
+
+        let victoryResponse = await this.channel.send({ components: [playAgain], embeds: [embed] });
+        this.ongoing = false;
+        victoryResponse.awaitMessageComponent({time: 120_000, componentType: ComponentType.Button}).then((i) => {
+            this.createNewGame(i)
+        }).finally(() => {victoryResponse.edit({components: []})})
+
+    }
+    /**
+     * Creates a new game with the same options.
+     * @param {} interaction 
+     */
+    createNewGame(interaction) {
+        new Game(interaction,this.currentOptions).create();
     }
 }
 
