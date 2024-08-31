@@ -15,7 +15,7 @@ const Game = require("./game");
 async function goToLobbyBase(gameCommand, bots, client) {
 	try {
 		await bots[0].sendCommand(gameCommand);
-		let response = await client.waitForMessageUpdate({embeds: [{}]});
+		let response = await client.waitForMessageUpdate(true);
 
 		let game = client.games.find((game) => game.mainResponse.id === response.id);
 		if (game == undefined) {throw new Error("Game was not found.")}

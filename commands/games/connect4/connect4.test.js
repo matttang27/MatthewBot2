@@ -90,8 +90,8 @@ describe("Emojis Stage", () => {
 			let [response,game] = await goToConnect4Emojis(2);
 			expect(response.embeds.at(0).title).toBe("Connect4 game setting emojis...") 
             expect(response.embeds.at(1).title).toBe("Choose your piece!");
-			expect(response.embeds.at(1).description.includes(`<@${bots[0].userId}> - :blue_circle:`))
-			expect(response.embeds.at(1).description.includes(`<@${bots[1].userId}> - :red_circle:`))
+			expect(response.embeds.at(1).description.includes(`<@${bots[0].userId}> - 🔵`))
+			expect(response.embeds.at(1).description.includes(`<@${bots[1].userId}> - 🔴`))
 			expect(game.stage.name === "emojis");
 		})
 
@@ -137,9 +137,15 @@ describe("Game Stage", () => {
 
 		for (var i=0;i<3;i++) {
 			await bots[0].sendMessage("4");
-			response = client.waitForMessageUpdate(true);
+			response = await client.waitForMessageUpdate(true);
+			expect(response.embeds.at(1).description.includes(`<@${bots[0].userId}> moved: (4,${6-i})`)).toBeTruthy();
+			expect(response.embeds.at(1).description.split("🔵").length).toBe(i+2);
+			expect(response.embeds.at(1).description.includes(`<@${bots[1].userId}>'s turn`)).toBeTruthy();
 			await bots[1].sendMessage("3");
-			response = client.waitForMessageUpdate(true);
+			response = await client.waitForMessageUpdate(true);
+			expect(response.embeds.at(1).description.includes(`<@${bots[1].userId}> moved: (3,${6-i})`)).toBeTruthy();
+			expect(response.embeds.at(1).description.split("🔴").length).toBe(i+2);
+			expect(response.embeds.at(1).description.includes(`<@${bots[0].userId}>'s turn`)).toBeTruthy();
 		}
 
 		await bots[0].sendMessage("4");
@@ -181,8 +187,80 @@ describe("Game Stage", () => {
 		it("changes the time to move if timeLimit changed", async () => {
 			let [response, game] = await goToConnect4Game(2, {timeLimit: 10});
 
+			let timeoutMessage, winScreen;
+			[response,timeoutMessage] = await Promise.all([client.waitForMessageUpdate(true,undefined,15000), client.waitForMessageCreate(true,undefined,15000)]);
+		})
+	})
+
+	describe("Gamemodes work", () => {
+		test("Colorblind mode skips emoji stage, doesn't show pieces until win", async () => {
+			let [response,game] = await goToOptions(2,{gamemode: "Colorblind"});
+			await bots[0].clickButton("Continue",response);
+
+			response = await client.waitForMessageUpdate(true);
+			expect(response.embeds.at(0).title).toBe("Connect4 game ongoing!");
+			expect(response.embeds.at(1).title).toBe(null);
+
+			await bots[0].sendMessage("4")
+			response = await client.waitForMessageUpdate(true);
+			expect(response.embeds.at(1).description.split("⚫").length).toBe(2)
+
+			for (var i=1;i<6;i++) {
+				await bots[i % 2].sendMessage(`${4-(i%2)}`)
+				response = await client.waitForMessageUpdate(true);
+				expect(response.embeds.at(1).description.split("⚫").length).toBe(i+2)
+			}
+
+			await bots[0].sendMessage("4")
 			let winScreen;
-			[response,winScreen] = await Promise.all([client.waitForMessageUpdate(true,undefined,15000), client.waitForMessageCreate(true,undefined,15000)]);
+			[response,winScreen] = await Promise.all([
+				client.waitForMessageUpdate(true),
+				client.waitForMessageCreate(true)
+			])
+
+			expect(response.embeds.at(1).description.split("🔵").length).toBe(6)
+			expect(response.embeds.at(1).description.split("🔴").length).toBe(4)
+
+		})
+		test("Blind mode skips emoji stage, doesn't show board until win", async () => {
+			let [response,game] = await goToOptions(2,{gamemode: "Blind"});
+			await bots[0].clickButton("Continue",response);
+
+			response = await client.waitForMessageUpdate(true);
+			expect(response.embeds.at(0).title).toBe("Connect4 game ongoing!");
+			expect(response.embeds.at(1).title).toBe(null);
+
+			await bots[0].sendMessage("4")
+			response = await client.waitForMessageUpdate(true);
+			expect(response.embeds.at(1).description.split("⚪").length).toBe(43)
+			expect(response.embeds.at(1).description.split("🔴").length).toBe(2)
+
+			for (var i=1;i<6;i++) {
+				await bots[i % 2].sendMessage(`${4-(i%2)}`)
+				response = await client.waitForMessageUpdate(true);
+				expect(response.embeds.at(1).description.split("⚪").length).toBe(43)
+			}
+
+			await bots[0].sendMessage("4")
+			let winScreen;
+			[response,winScreen] = await Promise.all([
+				client.waitForMessageUpdate(true),
+				client.waitForMessageCreate(true)
+			])
+
+			expect(response.embeds.at(1).description.split("🔵").length).toBe(6)
+			expect(response.embeds.at(1).description.split("🔴").length).toBe(4)
+		})
+		test("Spin mode rotates the board clockwise every turn", async () => {
+			let [response,game] = await goToOptions(2,{gamemode: "Dizzy"});
+			await bots[0].clickButton("Start",response);
+
+			response = await client.waitForMessageUpdate(true);
+			expect(response.embeds.at(0).title).toBe("Connect4 game ongoing!");
+			expect(response.embeds.at(1).title).toBe(null);
+
+			let moves = ["4",""]
+			await bots[0].sendMessage("4")
 		})
 	})
 
@@ -193,7 +271,7 @@ describe("Game Stage", () => {
 			let [response, game] = await goToConnect4Game(2);
 			await bots[0].sendMessage("1")
 			let deletedMove;
-			[response, deletedMove] = await Promise.all(client.waitForMessageUpdate(true),client.waitForMessageDelete({author: {id: bots[0].userId}}));
+			[response, deletedMove] = await Promise.all([client.waitForMessageUpdate(true),client.waitForMessageDelete({author: {id: bots[0].userId}})]);
 		});
 
 		it("deletes the move, declares the player as the winner, and transitions to the end stage if a win is detected", async () => {
@@ -202,11 +280,11 @@ describe("Game Stage", () => {
 
 			await bots[0].sendMessage("4")
 			let deletedMove, winScreen;
-			[response, deletedMove, winScreen] = await Promise.all(
+			[response, deletedMove, winScreen] = await Promise.all([
 				client.waitForMessageUpdate(true),
 				client.waitForMessageDelete({author: {id: bots[0].userId}}),
 				client.waitForMessageCreate(true)
-			);
+			]);
 		});
 
 		it("does not respond if the column is full.", async () => {
@@ -230,11 +308,11 @@ describe("Game Stage", () => {
 
 			await bots[0].sendMessage("2")
 			let deletedMove, winScreen;
-			[response, deletedMove, winScreen] = await Promise.all(
+			[response, deletedMove, winScreen] = await Promise.all([
 				client.waitForMessageUpdate(true),
 				client.waitForMessageDelete({author: {id: bots[0].userId}}),
 				client.waitForMessageCreate(true)
-			);
+			]);
 		});
 
 
@@ -261,7 +339,7 @@ describe("Game Stage", () => {
 			game.board[0][0] = bots[0].userId;
 
 			await new Promise(r => setTimeout(r,3000));
-			response, winScreen = await Promise.all(client.waitForMessageUpdate(true), client.waitForMessageCreate(true));
+			response, winScreen = await Promise.all([client.waitForMessageUpdate(true), client.waitForMessageCreate(true)]);
 
 			expect(response.embeds.at(0).description.includes(`<@${bots[1].userId}> has won!`)).toBeTruthy()
 			expect(winScreen.embeds.at(0).title).toBe("We have a winner!");

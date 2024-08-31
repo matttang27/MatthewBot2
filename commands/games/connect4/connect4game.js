@@ -10,6 +10,7 @@ const {
     MessageType,
     time,
     TimestampStyles,
+    User,
 } = require("discord.js");
 
 const {
@@ -89,16 +90,12 @@ class Connect4Game extends Game {
                 label: "Gamemode",
                 desc: 
                 `Enter the number of the gamemode you would like to play:
-
-                1. Original - The classic connect4.
-                
-                2. Colorblind - Pieces are all identical. Can you remember them all?
-
-                3. Blind - The board is not shown. For the brave.
-
-                4. Dizzyness - Every move, the piece is inserted from a different side (rotating clockwise)`,
+                \n1. Original - The classic connect4.
+                \n2. Colorblind - Pieces are all identical. Can you remember them all?
+                \n3. Blind - The board is not shown. For the brave.
+                \n4. Dizzy - Every move, the piece is inserted from a different side (rotating clockwise)`,
                 type: "selection",
-                selections: ["Original","Colorblind","Blind","Spin"],
+                selections: ["Original","Colorblind","Blind","Dizzy"],
                 value: "Original",
                 filter: (m) =>
                     !isNaN(m.content) &&
@@ -139,6 +136,19 @@ class Connect4Game extends Game {
                 this.players.at(i).other.emoji = this.defaultEmojis[i];
             }
         }
+
+        /**
+         * Represents the winner of the Connect4 game.
+         * 
+         * - `null` if the game is still ongoing or no winner has been determined yet.
+         * - A `User` object representing the player who won the game.
+         * - `"boardFull"` if the game ended in a draw with the board completely filled.
+         * - `"rotateBoardFull"` if the game ended because the board could not rotate to a valid state.
+         * 
+         * @type {null | User | "boardFull" | "rotateBoardFull"}
+         */
+        this.winner = null;
+
     }
 
     async editEmojiEmbed(edit) {
@@ -155,7 +165,6 @@ class Connect4Game extends Game {
             await this.mainResponse.edit(this.responseBody)
         };
     }
-    
 
     /**
      *
@@ -163,7 +172,7 @@ class Connect4Game extends Game {
      */
     async setEmojis() {
 
-        if (this.currentOptions.gamemode in ["Colorblind","Blind"]) return;
+        if (["Colorblind","Blind"].includes(this.currentOptions.gamemode)) return;
         let rCollector;
         try {
     
@@ -197,28 +206,49 @@ class Connect4Game extends Game {
     }
 
     /**
-     * For spin gamemode: Rotates the board clockwise until there is an available move
+     * For Dizzy gamemode: Checks if the board sides are all full (since then no one can play)
+     */
+    rotateBoardFull() {
+        for (var i=0;i<this.currentOptions.width;i++) {
+            //top row & bottom row
+            if (this.board[0][i] != -1 || this.board[this.currentOptions.height - 1][i] != 1) {
+                return false;
+            }
+        }
+        for (var j=0;j<this.currentOptions.height;j++) {
+            //left column & right column
+            if (this.board[j][0] != -1 || this.board[j][this.currentOptions.width - 1] != -1) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * For Dizzy gamemode: Rotates the board clockwise until there is an available move
      * WARNING: Infinite loop if board is full.
      */
-    async rotateBoard() {
-        this.board = this.board.map((val,index) => matrix.map(row => row[index]).reverse())
+    rotateBoard() {
+
+        let newBoard = this.board[0].map((val, index) => this.board.map(row => row[index]).reverse())
+        this.board = newBoard;
         
         [this.currentOptions.width, this.currentOptions.height] = [this.currentOptions.height, this.currentOptions.width]
         for (var i=0;i<this.moves.length;i++) {
             let temp = this.moves[i][1];
             this.moves[i][1] = this.moves[i][2];
-            this.moves[i][2] = this.width - this.moves[i][1] - 1;
+            this.moves[i][2] = this.currentOptions.width - temp - 1;
         }
 
         //check if there is valid move
         let valid = false;
-        for (var i=0;i<this.width;i++) {
+        for (var i=0;i<this.currentOptions.width;i++) {
             if (this.board[0][i] == -1) {
                 valid = true;
             }
         }
 
-        if (! valid) {
+        if (!valid) {
             this.rotateBoard();
         }
     }
@@ -242,8 +272,8 @@ class Connect4Game extends Game {
             this.currentOptions.winLength > this.currentOptions.height
         ) {
             this.currentOptions.winLength = Math.min(
-                options.width,
-                options.height
+                this.currentOptions.width,
+                this.currentOptions.height
             );
         }
 
@@ -254,18 +284,23 @@ class Connect4Game extends Game {
         this.stageEmbed.setTitle(null);
 
         while (true) {
-            //rotates the board and moves if gamemode is Spin
-            if (this.currentOptions.gamemode == "Spin" && this.moves.length <= this.currentOptions.height * this.currentOptions.width) {
-                this.rotateBoard()
+            if (this.winner != null) {
+                if (this.moves.length == this.currentOptions.height * this.currentOptions.width) {
+                    this.winner = "boardFull"
+                } else if (this.currentOptions.gamemode == "Dizzy" && this.rotateBoardFull()) {
+                    this.winner = "rotateBoardFull"
+                }
+            }
+
+            //rotates the board and moves if gamemode is Dizzy
+            if (this.currentOptions.gamemode == "Dizzy" && this.winner == null) {
+                this.rotateBoard();
             }
             
         
             await this.printBoard(true);
 
-            if (this.winner != null || this.moves.length == this.currentOptions.height * this.currentOptions.width) {return}
-            //board is full
-        
-            
+            if (this.winner != null) {return}            
 
             const filter = (m) =>
                 m.author.id === this.currentPlayer.user.id &&
@@ -284,14 +319,25 @@ class Connect4Game extends Game {
                     await collected.first().delete();
                     
                     let move = parseInt(collected.first().content) - 1;
-
-                    for (var i = this.currentOptions.height - 1;i >= 0;i--) {
-                        if (this.board[i][move] == -1) {
-                            this.board[i][move] = this.currentPlayer.user.id;
-                            this.moves.push([this.currentPlayer.user.id,i,move])
-                            break;
+                    
+                    if (this.currentOptions.gamemode == "Dizzy") {
+                        for (var i = 0; i < this.currentOptions.height; i++) {
+                            if (i == this.currentOptions.height - 1 || this.board[i+1][move] != -1) {
+                                this.board[i][move] = this.currentPlayer.user.id;
+                                this.moves.push([this.currentPlayer.user.id,i,move])
+                                break;
+                            }
+                        }
+                    } else {
+                        for (var i = this.currentOptions.height - 1;i >= 0;i--) {
+                            if (this.board[i][move] == -1) {
+                                this.board[i][move] = this.currentPlayer.user.id;
+                                this.moves.push([this.currentPlayer.user.id,i,move])
+                                break;
+                            }
                         }
                     }
+                    
 
                     if (this.checkWin() != -1) {
                         this.winner = this.players.get(this.checkWin()).user;
@@ -350,15 +396,15 @@ class Connect4Game extends Game {
             let lastMove = this.moves[this.moves.length - 1]
             boardText += `<@${lastMove[0]}> moved: (${lastMove[2] + 1},${lastMove[1] + 1}) - ((1,1) is top left)\n\n`
         }
-        
 
+        
         for (var i = 0; i < this.currentOptions.height; i++) {
             for (var j = 0; j < this.currentOptions.width; j++) {
-                if (this.board[i][j] == -1 || this.currentOptions.gamemode == "Blind") {
+                if (this.board[i][j] == -1 || (this.currentOptions.gamemode == "Blind" && this.winner == null)) {
                     boardText += "⚪";
                 }
                 //For dead players who timed out, put black circle
-                else if (! this.players.get(this.board[i][j]).other.alive || this.currentOptions.gamemode == "Colorblind") {
+                else if (! this.players.get(this.board[i][j]).other.alive || (this.currentOptions.gamemode == "Colorblind" && this.winner == null)) {
                     boardText += "⚫";
                 } else {
                     boardText += this.players.get(this.board[i][j]).other.emoji;
@@ -370,7 +416,7 @@ class Connect4Game extends Game {
 
         if (this.winner != null) {
             boardText += `\n\n  ${this.players.get(this.winner.id).other.emoji} - <@${this.currentPlayer.user.id}> has won!`
-        } else if (this.turn > this.currentOptions.height * this.currentOptions.width) {
+        } else if (this.winner == "boardFull" || this.winner == "rotateBoardFull") {
             boardText += `Board is full. It's a draw!`
         } else {
             boardText += `\n\n  ${this.currentPlayer.other.emoji} - <@${

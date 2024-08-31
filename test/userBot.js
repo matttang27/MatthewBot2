@@ -180,6 +180,7 @@ class UserBot {
    * @returns {Promise<void>}
    */
   async sendMessage(content, guildId=this.guildId, channelId=this.channelId) {
+    
     if (this.page.url() != `https://discord.com/channels/${guildId}/${channelId}`) {
       await this.page.goto(`https://discord.com/channels/${guildId}/${channelId}`);
     }
